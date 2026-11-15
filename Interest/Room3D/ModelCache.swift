@@ -4,7 +4,7 @@ import SceneKit
 actor ModelCache {
   static let shared = ModelCache()
 
-  private var inFlight: [String: Task<SCNNode, Never>] = [:]
+  private var inFlight: [String: Task<SCNNode?, Never>] = [:]
   private let session: URLSession = {
     let c = URLSessionConfiguration.default
     c.timeoutIntervalForRequest = 8
@@ -17,18 +17,24 @@ actor ModelCache {
   func node(for product: Product) async -> SCNNode {
     guard let url = product.modelUrl else { return Self.fallbackBox(for: product) }
     let key = product.id + "|" + url.absoluteString
-    if let t = inFlight[key] { return await t.value.clone() }
+    if let t = inFlight[key] {
+      if let node = await t.value { return node.clone() }
+      return Self.fallbackBox(for: product)
+    }
     let session = self.session
-    let t = Task<SCNNode, Never> {
+    let t = Task<SCNNode?, Never> {
       do {
         let local = try await Self.localFile(for: url, productId: product.id, session: session)
         return try Self.loadFitted(url: local, dimensions: product.dimensions)
       } catch {
-        return Self.fallbackBox(for: product)
+        return nil
       }
     }
     inFlight[key] = t
-    return await t.value.clone()
+    if let node = await t.value { return node.clone() }
+    // Failure: do not cache, so the next call retries (only if no newer attempt replaced it).
+    inFlight[key] = nil
+    return Self.fallbackBox(for: product)
   }
 
   /// Coloured box at product.dimensions, base at y = 0, centred in x/z.

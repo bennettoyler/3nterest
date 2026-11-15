@@ -6,23 +6,23 @@ enum RoomSceneBuilder {
     let scene = SCNScene()
     let root = scene.rootNode
 
-    // Surfaces
-    for w in room.shell.walls {
-      root.addChildNode(surfaceNode(w, thickness: 0.1, color: CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)))
-    }
-    for d in room.shell.doors {
-      root.addChildNode(surfaceNode(d, thickness: 0.14, color: CGColor(red: 0.45, green: 0.30, blue: 0.18, alpha: 1)))
-    }
-    for w in room.shell.windows {
-      root.addChildNode(surfaceNode(w, thickness: 0.14, color: CGColor(red: 0.45, green: 0.58, blue: 0.70, alpha: 1)))
-    }
-
     // Floor, sized to the walls' extent
     let xs = room.shell.walls.map { $0.transform.count == 16 ? $0.transform[12] : 0 }
     let zs = room.shell.walls.map { $0.transform.count == 16 ? $0.transform[14] : 0 }
     let minX = xs.min() ?? -2, maxX = xs.max() ?? 2, minZ = zs.min() ?? -2, maxZ = zs.max() ?? 2
     let fw = max(maxX - minX, 1), fd = max(maxZ - minZ, 1)
     let cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2
+
+    // Surfaces: single-sided planes facing the room centre (dollhouse view)
+    for w in room.shell.walls {
+      root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0, color: CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)))
+    }
+    for d in room.shell.doors {
+      root.addChildNode(surfaceNode(d, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.30, blue: 0.18, alpha: 1)))
+    }
+    for w in room.shell.windows {
+      root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.58, blue: 0.70, alpha: 1)))
+    }
     let plane = SCNPlane(width: CGFloat(fw), height: CGFloat(fd))
     let fm = SCNMaterial()
     fm.diffuse.contents = CGColor(red: 0.84, green: 0.70, blue: 0.50, alpha: 1)
@@ -57,7 +57,7 @@ enum RoomSceneBuilder {
     let cam = SCNNode()
     cam.camera = SCNCamera()
     cam.camera?.zFar = 200
-    cam.position = SCNVector3(cx + fw / 2 + extent * 0.4, 2.5 + extent * 0.7, cz + fd / 2 + extent * 0.4)
+    cam.position = SCNVector3(cx + fw / 2 + extent * 0.35, 2.2 + extent * 0.6, cz + fd / 2 + extent * 0.35)
     cam.look(at: SCNVector3(cx, 0.6, cz))
     cam.name = "defaultCamera"
     root.addChildNode(cam)
@@ -89,13 +89,25 @@ enum RoomSceneBuilder {
     return container
   }
 
-  private static func surfaceNode(_ s: Surface, thickness: Float, color: CGColor) -> SCNNode {
-    let box = SCNBox(width: CGFloat(s.width), height: CGFloat(s.height), length: CGFloat(thickness), chamferRadius: 0)
+  /// Single-sided plane whose visible face points toward `centre`; invisible from outside the room.
+  private static func surfaceNode(_ s: Surface, centre: (Float, Float), offset: Float, color: CGColor) -> SCNNode {
+    let plane = SCNPlane(width: CGFloat(s.width), height: CGFloat(s.height))
     let m = SCNMaterial()
     m.diffuse.contents = color
-    box.materials = [m]
-    let n = SCNNode(geometry: box)
-    if s.transform.count == 16 { n.transform = s.transform.scnMatrix }
-    return n
+    m.lightingModel = .constant
+    m.isDoubleSided = false
+    plane.materials = [m]
+    let child = SCNNode(geometry: plane)
+    let holder = SCNNode()
+    holder.addChildNode(child)
+    if s.transform.count == 16 {
+      holder.transform = s.transform.scnMatrix
+      let t = s.transform
+      // World-space wall normal (local +Z) and vector from wall to centre, in the xz plane.
+      let dot = t[8] * (centre.0 - t[12]) + t[10] * (centre.1 - t[14])
+      if dot < 0 { child.eulerAngles = SCNVector3(0, Float.pi, 0) }
+      child.position = SCNVector3(0, 0, dot < 0 ? -offset : offset)
+    }
+    return holder
   }
 }
