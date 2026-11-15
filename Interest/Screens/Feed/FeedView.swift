@@ -23,12 +23,7 @@ struct FeedView: View {
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .principal) {
-        HStack(spacing: 8) {
-          PinLogo()
-          Text("3nterest")
-            .font(.title3.bold())
-            .foregroundStyle(Theme.orange)
-        }
+        Wordmark()
       }
     }
     .task {
