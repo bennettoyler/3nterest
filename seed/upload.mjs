@@ -3,6 +3,7 @@
 // and patches the matching product or room URL field. Run after `npx convex run seed:run`.
 // File names are slugs: seed/models/<product>.usdz, seed/thumbs/<product>.jpg,
 // seed/thumbs/room-<room>.jpg, seed/instructions/<product>.pdf.
+// Extra arguments go to `npx convex run`, e.g. `node seed/upload.mjs --prod`.
 import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join, extname, basename, dirname } from "node:path";
@@ -16,7 +17,7 @@ const folders = {
 };
 
 function convexRun(fn, args) {
-  const out = execFileSync("npx", ["convex", "run", fn, JSON.stringify(args)], {
+  const out = execFileSync("npx", ["convex", "run", ...process.argv.slice(2), fn, JSON.stringify(args)], {
     cwd: join(root, ".."),
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],

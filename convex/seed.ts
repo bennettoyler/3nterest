@@ -63,6 +63,7 @@ export const run = internalMutation({
             id: p.id,
             transform: p.transform,
             category,
+            ...(p.scannedSize ? { scannedSize: p.scannedSize } : {}),
             ...(slug ? { productId: productIds.get(slug)! } : {}),
           };
         }),
