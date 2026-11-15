@@ -2,8 +2,8 @@ import Combine
 import ConvexMobile
 import Foundation
 
-final class ConvexBackend: Backend {
-  enum BackendError: Error { case notImplemented, noResult, uploadFailed }
+final class ConvexBackend: Backend, @unchecked Sendable {
+  enum BackendError: Error { case notImplemented, noResult, uploadFailed, timedOut }
 
   private let client: ConvexClient
 
@@ -34,11 +34,11 @@ final class ConvexBackend: Backend {
   }
 
   func saveRoom(_ room: Room) async throws -> String {
-    try await client.mutation("rooms:save", with: ["room": room])
+    try await mutation("rooms:save", ["room": room])
   }
 
   func publish(roomId: String, title: String, thumbnailJPEG: Data) async throws {
-    let uploadUrl: String = try await client.mutation("files:generateUploadUrl")
+    let uploadUrl: String = try await mutation("files:generateUploadUrl")
     guard let url = URL(string: uploadUrl) else { throw BackendError.uploadFailed }
     var request = URLRequest(url: url)
     request.httpMethod = "POST"
@@ -46,11 +46,11 @@ final class ConvexBackend: Backend {
     let (data, response) = try await URLSession.shared.upload(for: request, from: thumbnailJPEG)
     guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw BackendError.uploadFailed }
     let storageId = try JSONDecoder().decode(StorageUpload.self, from: data).storageId
-    try await client.mutation("rooms:publish", with: ["roomId": roomId, "title": title, "storageId": storageId])
+    let _: String? = try await mutation("rooms:publish", ["roomId": roomId, "title": title, "storageId": storageId])
   }
 
   func remix(roomId: String, as userId: String) async throws -> Room {
-    try await client.mutation("rooms:remix", with: ["roomId": roomId, "userId": userId])
+    try await mutation("rooms:remix", ["roomId": roomId, "userId": userId])
   }
 
   func products() async throws -> [Product] {
@@ -66,7 +66,7 @@ final class ConvexBackend: Backend {
     var args: [String: ConvexEncodable?] = ["userId": userId]
     if let roomId { args["roomId"] = roomId }
     if let productId { args["productId"] = productId }
-    try await client.mutation("collections:save", with: args)
+    let _: String? = try await mutation("collections:save", args)
   }
 
   func generateDesign(prompt: String, userId: String) async throws -> Design {
@@ -97,11 +97,36 @@ final class ConvexBackend: Backend {
     try await query("sellers:forUser", ["userId": forUserId])
   }
 
-  private func query<T: Decodable>(_ name: String, _ args: [String: ConvexEncodable?]? = nil) async throws -> T {
-    for try await value in client.subscribe(to: name, with: args, yielding: T.self).values {
-      return value
+  // ConvexClient reconnects forever when the network is down, so every call is raced against a
+  // timeout and throws, letting the app fall back to StubBackend.
+  private func query<T: Decodable & Sendable>(_ name: String, _ args: [String: ConvexEncodable?]? = nil) async throws -> T {
+    try await withTimeout(5) {
+      for try await value in self.client.subscribe(to: name, with: args, yielding: T.self).values {
+        return value
+      }
+      throw BackendError.noResult
     }
-    throw BackendError.noResult
+  }
+
+  private func mutation<T: Decodable & Sendable>(_ name: String, _ args: [String: ConvexEncodable?]? = nil) async throws -> T {
+    try await withTimeout(8) { try await self.client.mutation(name, with: args) }
+  }
+
+  private func action<T: Decodable & Sendable>(_ name: String, _ args: [String: ConvexEncodable?]? = nil) async throws -> T {
+    try await withTimeout(15) { try await self.client.action(name, with: args) }
+  }
+
+  private func withTimeout<T: Sendable>(_ seconds: Double, _ work: @escaping @Sendable () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+      group.addTask { try await work() }
+      group.addTask {
+        try await Task.sleep(for: .seconds(seconds))
+        throw BackendError.timedOut
+      }
+      defer { group.cancelAll() }
+      guard let result = try await group.next() else { throw BackendError.noResult }
+      return result
+    }
   }
 }
 

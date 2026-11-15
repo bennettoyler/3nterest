@@ -1,6 +1,16 @@
 import type { Doc } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 
+// Convex sends -0 as {"$float": …}, which Swift's plain [Float] fields cannot decode.
+function finite<T>(value: T): T {
+  if (typeof value === "number") return (value + 0) as T;
+  if (Array.isArray(value)) return value.map(finite) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, finite(v)])) as T;
+  }
+  return value;
+}
+
 export function toUser(u: Doc<"users">) {
   return { id: u._id as string, name: u.name, avatarUrl: u.avatarUrl };
 }
@@ -18,8 +28,8 @@ export async function toRoom(ctx: QueryCtx, r: Doc<"rooms">) {
     title: r.title,
     thumbnailUrl: r.thumbnailUrl,
     published: r.published,
-    shell: r.shell,
-    placements: r.placements,
+    shell: finite(r.shell),
+    placements: finite(r.placements),
     remixedFromId: r.remixedFromId as string | undefined,
   };
 }
@@ -33,7 +43,7 @@ export async function toProduct(ctx: QueryCtx, p: Doc<"products">) {
     name: p.name,
     category: p.category,
     priceCents: p.priceCents,
-    dimensions: p.dimensions,
+    dimensions: finite(p.dimensions),
     modelUrl: p.modelUrl,
     thumbnailUrl: p.thumbnailUrl,
     instructionsUrl: p.instructionsUrl,
@@ -48,8 +58,8 @@ export function toDesign(d: Doc<"designs">) {
     ownerId: d.ownerId as string,
     prompt: d.prompt,
     title: d.title,
-    parts: d.parts,
-    cutList: d.cutList,
+    parts: finite(d.parts),
+    cutList: finite(d.cutList),
     hardware: d.hardware,
     steps: d.steps,
   };
