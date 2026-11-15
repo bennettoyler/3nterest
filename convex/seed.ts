@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import sampleRoom from "../Interest/Shared/SampleRoom.json";
 import * as data from "./seedData";
@@ -148,24 +148,47 @@ export const wipeAll = internalMutation({
   },
 });
 
-export const attachFile = internalMutation({
-  args: {
-    table: v.union(v.literal("products"), v.literal("rooms")),
-    slug: v.string(),
-    field: v.union(v.literal("modelUrl"), v.literal("thumbnailUrl"), v.literal("instructionsUrl")),
-    storageId: v.id("_storage"),
-  },
-  handler: async (ctx, { table, slug, field, storageId }) => {
-    const url = await ctx.storage.getUrl(storageId);
-    if (!url) throw new Error(`No file ${storageId}`);
+const fileArgs = {
+  table: v.union(v.literal("products"), v.literal("rooms")),
+  slug: v.string(),
+  field: v.union(v.literal("modelUrl"), v.literal("thumbnailUrl"), v.literal("instructionsUrl")),
+};
+
+// True when the row exists and its field is still empty, so upload.mjs only uploads what is missing.
+export const needsFile = internalQuery({
+  args: fileArgs,
+  handler: async (ctx, { table, slug, field }) => {
     const doc = await ctx.db
       .query(table)
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .unique();
-    if (!doc) return null;
-    if (table === "rooms" && field !== "thumbnailUrl") throw new Error("Rooms only take thumbnails");
+    return Boolean(doc && !(doc as Record<string, unknown>)[field]);
+  },
+});
+
+export const attachFile = internalMutation({
+  args: { ...fileArgs, storageId: v.id("_storage") },
+  handler: async (ctx, { table, slug, field, storageId }) => {
+    const doc = await ctx.db
+      .query(table)
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    const url = await ctx.storage.getUrl(storageId);
+    if (!doc || !url || (table === "rooms" && field !== "thumbnailUrl")) {
+      await ctx.storage.delete(storageId);
+      return null;
+    }
     await ctx.db.patch(doc._id, { [field]: url });
     return url;
+  },
+});
+
+// Seeded rooms in the feed and how many lack a thumbnail, for the demo reset's checks.
+export const status = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const seeded = (await ctx.db.query("rooms").collect()).filter((r) => r.slug && r.published);
+    return { seededRooms: seeded.length, seededWithoutThumbnail: seeded.filter((r) => !r.thumbnailUrl).length };
   },
 });
 

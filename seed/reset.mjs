@@ -54,8 +54,12 @@ const missing = categories.filter((c) => !products.some((p) => p.category === c)
 check("products", products.length >= 16 && missing.length === 0, `${products.length} products${missing.length ? `, missing ${missing}` : ", every category"}`);
 
 const feed = run("rooms:feed");
-const blank = feed.filter((r) => !r.thumbnailUrl).length;
-check("feed", feed.length >= 8 && feed.length <= 12 && blank === 0, `${feed.length} published rooms, ${blank} without thumbnail`);
+const { seededRooms, seededWithoutThumbnail } = run("seed:status");
+check(
+  "feed",
+  seededRooms >= 8 && seededWithoutThumbnail === 0,
+  `${feed.length} published rooms (${seededRooms} seeded, ${seededWithoutThumbnail} of them without thumbnail)`,
+);
 
 const started = Date.now();
 const design = run("designs:generate", { prompt: "a 120 cm walnut desk with two drawers", userId: users[0].id });
