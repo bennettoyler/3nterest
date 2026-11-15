@@ -1,19 +1,15 @@
 #!/usr/bin/env node
-// Demo reset (Task Z step 3): seed:run (from the newest seed/scans/*.json, else SampleRoom.json),
-// seed/upload.mjs, then smoke checks that print PASS or FAIL. Exits 1 if any check fails.
-// seed:run keeps everything the app created, including seeded rooms the app saved over.
-// `--scan` rebuilds the seeded rooms from the newest scan (overwriting app edits to those rooms only);
-// `--full` first wipes every row and file (Task Z only).
-// Other arguments go to `npx convex run`, e.g. `npm run demo:reset -- --prod`.
+// Demo reset (Task Z step 3), add-only: seed:run adds missing seeded rows (plus scan-built rooms from the
+// newest seed/scans/*.json), seed/upload.mjs fills missing files, then smoke checks print PASS or FAIL and
+// delete only the order and design they created. Nothing else is deleted or overwritten. Exits 1 on failure.
+// Arguments go to `npx convex run`, e.g. `npm run demo:reset -- --prod`.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const full = process.argv.includes("--full");
-const replaceRooms = process.argv.includes("--scan");
-const flags = process.argv.slice(2).filter((a) => a !== "--full" && a !== "--scan");
+const flags = process.argv.slice(2);
 const run = (fn, args = {}) => {
   const out = execFileSync("npx", ["convex", "run", ...flags, fn, JSON.stringify(args)], {
     cwd: join(root, ".."),
@@ -34,11 +30,7 @@ const scans = existsSync(scansDir)
 const scan = scans[0] ? JSON.parse(readFileSync(scans[0], "utf8")) : undefined;
 
 console.log(`Seeding from ${scans[0] ?? "Interest/Shared/SampleRoom.json"}`);
-if (full) {
-  console.log("Full reset: deleting every row and file, including what the app created.");
-  run("seed:wipeAll");
-}
-console.log(run("seed:run", { ...(scan ? { scan } : {}), ...(replaceRooms ? { replaceRooms } : {}) }));
+console.log(run("seed:run", scan ? { scan } : {}));
 execFileSync("node", [join(root, "upload.mjs"), ...flags], { stdio: "inherit" });
 
 let failed = 0;
@@ -88,10 +80,6 @@ try {
   run("seed:deleteSmoke", { designId: design.id, ...(checkout ? { orderId: checkout.orderId } : {}) });
 }
 
-console.log(
-  full
-    ? "\nFull reset: rooms, orders and designs created in the app are gone."
-    : "\nRooms, orders and designs created in the app were kept; ids are unchanged.",
-);
+console.log("\nNothing created by the app was changed.");
 console.log(failed ? `${failed} check(s) failed.` : "All checks passed.");
 process.exit(failed ? 1 : 0);

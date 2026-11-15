@@ -36,24 +36,37 @@ function roomTemplate(scan: any) {
   };
 }
 
-// Upserts the seeded users, sellers and products by name or slug, keeping their ids and file URLs, and
-// inserts any missing seeded room. Existing seeded rooms are left as they are, because the app can save
-// over them; replaceRooms rebuilds them from the scan. Rows the app created are never touched.
-// Run seed/upload.mjs afterwards to attach new files.
+// Only fields the existing row does not have yet.
+function missingFields<T extends Record<string, unknown>>(existing: Record<string, unknown>, fields: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(fields).filter(([k, v]) => v !== undefined && existing[k] === undefined),
+  ) as Partial<T>;
+}
+
+// Add-only: inserts seeded users, sellers, products and rooms that are missing (matched by name or slug)
+// and fills fields they lack. Nothing is ever deleted or overwritten, so rows the app created and seeded
+// rows the app changed stay as they are. With a scan, 10 scan-built rooms (slug <room>-scan) are added
+// beside the seeded ones. Run seed/upload.mjs afterwards to attach missing files.
 export const run = internalMutation({
-  args: { scan: v.optional(v.any()), replaceRooms: v.optional(v.boolean()) },
-  handler: async (ctx, { scan, replaceRooms }) => {
+  args: { scan: v.optional(v.any()) },
+  handler: async (ctx, { scan }) => {
+    let added = 0;
     const existingUsers = await ctx.db.query("users").collect();
     const userIds: Id<"users">[] = [];
     for (const name of data.users) {
-      const id = existingUsers.find((u) => u.name === name)?._id ?? (await ctx.db.insert("users", { name }));
+      let id = existingUsers.find((u) => u.name === name)?._id;
+      if (!id) {
+        id = await ctx.db.insert("users", { name });
+        added++;
+      }
       userIds.push(id);
       const collections = await ctx.db
         .query("collections")
         .withIndex("by_user", (q) => q.eq("userId", id))
         .collect();
-      if (!collections.some((c) => c.name === "Saved")) {
+      if (collections.length === 0) {
         await ctx.db.insert("collections", { userId: id, name: "Saved", roomIds: [], productIds: [] });
+        added++;
       }
     }
 
@@ -67,8 +80,14 @@ export const run = internalMutation({
         userId: s.userIndex === undefined ? undefined : userIds[s.userIndex],
       };
       const existing = existingSellers.find((e) => e.name === s.name);
-      if (existing) await ctx.db.patch(existing._id, fields);
-      sellerIds.set(s.key, existing?._id ?? (await ctx.db.insert("sellers", fields)));
+      if (existing) {
+        const patch = missingFields(existing, fields);
+        if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch);
+        sellerIds.set(s.key, existing._id);
+      } else {
+        sellerIds.set(s.key, await ctx.db.insert("sellers", fields));
+        added++;
+      }
     }
 
     const products: Doc<"products">[] = [];
@@ -86,65 +105,50 @@ export const run = internalMutation({
         .query("products")
         .withIndex("by_slug", (q) => q.eq("slug", p.slug))
         .unique();
-      if (existing) await ctx.db.patch(existing._id, fields);
-      const id = existing?._id ?? (await ctx.db.insert("products", fields));
-      products.push((await ctx.db.get(id))!);
+      if (existing) {
+        const patch = missingFields(existing, fields);
+        if (Object.keys(patch).length) await ctx.db.patch(existing._id, patch);
+        products.push(existing);
+      } else {
+        products.push((await ctx.db.get(await ctx.db.insert("products", fields)))!);
+        added++;
+      }
     }
 
-    const template = roomTemplate(scan);
-    const slugs = new Set(data.rooms.map((r) => r.slug));
-    for (const room of await ctx.db.query("rooms").collect()) {
-      if (room.slug && !slugs.has(room.slug)) await ctx.db.delete(room._id);
-    }
-    for (const [i, r] of data.rooms.entries()) {
-      const fields = {
-        slug: r.slug,
-        ownerId: userIds[r.ownerIndex],
-        title: r.title,
-        published: true,
-        shell: template.shell,
-        placements: template.placements.map(({ scannedSize, ...p }) => {
-          const ranked = rankByFit(products, p.category, scannedSize).filter(
-            (product) => p.category !== "other" || !scannedSize || sizeDistance(product.dimensions, scannedSize) <= 0.5,
-          );
-          const product = ranked[i % Math.max(ranked.length, 1)];
-          return {
-            ...p,
-            ...(scannedSize ? { scannedSize } : {}),
-            ...(product ? { productId: product._id as string } : {}),
-          };
-        }),
-      };
-      const existing = await ctx.db
-        .query("rooms")
-        .withIndex("by_slug", (q) => q.eq("slug", r.slug))
-        .unique();
-      if (!existing) await ctx.db.insert("rooms", fields);
-      else if (replaceRooms) await ctx.db.patch(existing._id, fields);
+    const templates = [{ suffix: "", template: roomTemplate(undefined) }];
+    const scanned = roomTemplate(scan);
+    if (scanned.fromScan) templates.push({ suffix: "-scan", template: scanned });
+    for (const { suffix, template } of templates) {
+      for (const [i, r] of data.rooms.entries()) {
+        const slug = r.slug + suffix;
+        const existing = await ctx.db
+          .query("rooms")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique();
+        if (existing) continue;
+        await ctx.db.insert("rooms", {
+          slug,
+          ownerId: userIds[r.ownerIndex],
+          title: suffix ? `${r.title} · real scan` : r.title,
+          published: true,
+          shell: template.shell,
+          placements: template.placements.map(({ scannedSize, ...p }) => {
+            const ranked = rankByFit(products, p.category, scannedSize).filter(
+              (product) => p.category !== "other" || !scannedSize || sizeDistance(product.dimensions, scannedSize) <= 0.5,
+            );
+            const product = ranked[i % Math.max(ranked.length, 1)];
+            return {
+              ...p,
+              ...(scannedSize ? { scannedSize } : {}),
+              ...(product ? { productId: product._id as string } : {}),
+            };
+          }),
+        });
+        added++;
+      }
     }
 
-    return {
-      source: template.fromScan ? "scan" : "SampleRoom.json",
-      users: userIds.length,
-      sellers: sellerIds.size,
-      products: products.length,
-      rooms: data.rooms.length,
-      placementsPerRoom: template.placements.length,
-    };
-  },
-});
-
-// Task Z full reset: deletes every row and stored file, including what the app created. Follow it
-// with seed:run and seed/upload.mjs in the same command (npm run demo:reset -- --full).
-export const wipeAll = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    const tables = ["orders", "collections", "rooms", "designs", "products", "sellers", "users"] as const;
-    for (const table of tables) {
-      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
-    }
-    for (const file of await ctx.db.system.query("_storage").collect()) await ctx.storage.delete(file._id);
-    return null;
+    return { source: scanned.fromScan ? "SampleRoom.json + scan" : "SampleRoom.json", added };
   },
 });
 
@@ -187,7 +191,7 @@ export const attachFile = internalMutation({
 export const status = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const seeded = (await ctx.db.query("rooms").collect()).filter((r) => r.slug && r.published);
+    const seeded = (await ctx.db.query("rooms").collect()).filter((r) => r.slug);
     return { seededRooms: seeded.length, seededWithoutThumbnail: seeded.filter((r) => !r.thumbnailUrl).length };
   },
 });
