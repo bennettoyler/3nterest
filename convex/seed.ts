@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import sampleRoom from "../Interest/Shared/SampleRoom.json";
 import * as data from "./seedData";
@@ -171,8 +171,8 @@ export const run = internalMutation({
 // vendorUrl, a product's previous seeded name, and a seeded room's product pick that the earlier rule
 // made but that does not fit its spot. Anything the app or a person changed stays as it is.
 export const correctSeeded = internalMutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { scan: v.optional(v.any()) },
+  handler: async (ctx, { scan }) => {
     const corrected: string[] = [];
     const products: Doc<"products">[] = [];
     for (const p of data.products) {
@@ -191,26 +191,30 @@ export const correctSeeded = internalMutation({
       products.push(doc);
     }
 
-    const template = roomTemplate(undefined);
-    for (const [i, r] of data.rooms.entries()) {
-      const room = await ctx.db
-        .query("rooms")
-        .withIndex("by_slug", (q) => q.eq("slug", r.slug))
-        .unique();
-      if (!room) continue;
-      let changed = false;
-      const placements = room.placements.map((placement) => {
-        const seeded = template.placements.find((t) => t.id === placement.id);
-        if (!seeded || placement.category !== seeded.category) return placement;
-        const before = pick(products, seeded.category, seeded.scannedSize, i, false);
-        if (!before || placement.productId !== before._id || fitsSpot(before, seeded.scannedSize)) return placement;
-        const after = pick(products, seeded.category, seeded.scannedSize, i, true);
-        if (!after) return placement;
-        changed = true;
-        corrected.push(`${r.slug}/${placement.id}: ${before.slug} → ${after.slug}`);
-        return { ...placement, productId: after._id as string };
-      });
-      if (changed) await ctx.db.patch(room._id, { placements });
+    const templates = [{ suffix: "", template: roomTemplate(undefined) }];
+    const scanned = roomTemplate(scan);
+    if (scanned.fromScan) templates.push({ suffix: "-scan", template: scanned });
+    for (const { suffix, template } of templates) {
+      for (const [i, r] of data.rooms.entries()) {
+        const room = await ctx.db
+          .query("rooms")
+          .withIndex("by_slug", (q) => q.eq("slug", r.slug + suffix))
+          .unique();
+        if (!room) continue;
+        let changed = false;
+        const placements = room.placements.map((placement) => {
+          const seeded = template.placements.find((t) => t.id === placement.id);
+          if (!seeded || placement.category !== seeded.category) return placement;
+          const before = pick(products, seeded.category, seeded.scannedSize, i, false);
+          if (!before || placement.productId !== before._id || fitsSpot(before, seeded.scannedSize)) return placement;
+          const after = pick(products, seeded.category, seeded.scannedSize, i, true);
+          if (!after) return placement;
+          changed = true;
+          corrected.push(`${room.slug}/${placement.id}: ${before.slug} → ${after.slug}`);
+          return { ...placement, productId: after._id as string };
+        });
+        if (changed) await ctx.db.patch(room._id, { placements });
+      }
     }
     return corrected;
   },
@@ -249,40 +253,67 @@ export const attachFile = internalMutation({
   },
 });
 
-async function currentFile(ctx: QueryCtx, url: unknown) {
-  if (typeof url !== "string") return null;
-  for (const file of await ctx.db.system.query("_storage").collect()) {
-    if ((await ctx.storage.getUrl(file._id)) === url) return file;
-  }
-  return null;
-}
-
-// sha256 (base64) of the file the field currently points at, or null when it is empty or not one of ours.
-export const fileHash = internalQuery({
-  args: fileArgs,
-  handler: async (ctx, { table, slug, field }) => {
-    const doc = await ctx.db
-      .query(table)
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .unique();
-    return (await currentFile(ctx, doc && (doc as Record<string, unknown>)[field]))?.sha256 ?? null;
+// For each target, the URL its field holds and the sha256 (base64) of that file, or null when the field
+// is empty or does not point at one of our files. The storage table is read once for all targets.
+export const fileHashes = internalQuery({
+  args: { targets: v.array(v.object(fileArgs)) },
+  handler: async (ctx, { targets }) => {
+    const hashes = new Map<string, string>();
+    for (const file of await ctx.db.system.query("_storage").collect()) {
+      const url = await ctx.storage.getUrl(file._id);
+      if (url) hashes.set(url, file.sha256);
+    }
+    const out = [];
+    for (const { table, slug, field } of targets) {
+      const doc = await ctx.db
+        .query(table)
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .unique();
+      const url = doc && (doc as Record<string, unknown>)[field];
+      out.push(typeof url === "string" ? { url, sha256: hashes.get(url) ?? null } : { url: null, sha256: null });
+    }
+    return out;
   },
 });
 
-// Replaces a seeded file only while the field still points at one of our own placeholder files
-// (matched by content hash); anything the app or a person set is left alone. Nothing is deleted.
+// Replaces a seeded file only while the field still holds expectedUrl, the placeholder URL that
+// seed:fileHashes matched by content hash; anything the app or a person set since is left alone. Nothing is deleted.
 export const replacePlaceholder = internalMutation({
-  args: { ...fileArgs, storageId: v.id("_storage"), placeholderHashes: v.array(v.string()) },
-  handler: async (ctx, { table, slug, field, storageId, placeholderHashes }) => {
+  args: { ...fileArgs, storageId: v.id("_storage"), expectedUrl: v.string() },
+  handler: async (ctx, { table, slug, field, storageId, expectedUrl }) => {
     const doc = await ctx.db
       .query(table)
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .unique();
-    const current = await currentFile(ctx, doc && (doc as Record<string, unknown>)[field]);
     const url = await ctx.storage.getUrl(storageId);
-    if (!doc || !current || !url || !placeholderHashes.includes(current.sha256)) return null;
+    if (!doc || !url || (doc as Record<string, unknown>)[field] !== expectedUrl) return null;
     await ctx.db.patch(doc._id, { [field]: url });
     return url;
+  },
+});
+
+// Each seeded room's placements with the slug of the product placed there, so seed/render_thumbs.py
+// renders the rooms as they are deployed.
+export const roomPicks = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const slugs = new Map((await ctx.db.query("products").collect()).map((p) => [p._id as string, p.slug]));
+    const rooms = [];
+    for (const r of data.rooms) {
+      for (const slug of [r.slug, `${r.slug}-scan`]) {
+        const room = await ctx.db
+          .query("rooms")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique();
+        if (!room) continue;
+        rooms.push({
+          slug,
+          shell: room.shell,
+          placements: room.placements.map((p) => ({ transform: p.transform, product: (p.productId && slugs.get(p.productId)) ?? null })),
+        });
+      }
+    }
+    return rooms;
   },
 });
 

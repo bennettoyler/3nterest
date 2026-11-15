@@ -32,7 +32,7 @@ const scan = scans[0] ? JSON.parse(readFileSync(scans[0], "utf8")) : undefined;
 
 console.log(`Seeding from ${scans[0] ?? "Interest/Shared/SampleRoom.json"}`);
 console.log(run("seed:run", scan ? { scan } : {}));
-console.log("Corrected earlier seed values:", run("seed:correctSeeded"));
+console.log("Corrected earlier seed values:", run("seed:correctSeeded", scan ? { scan } : {}));
 execFileSync("node", [join(root, "upload.mjs"), ...flags], { stdio: "inherit" });
 execFileSync("node", [join(root, "replace-placeholders.mjs"), ...flags], { stdio: "inherit" });
 
