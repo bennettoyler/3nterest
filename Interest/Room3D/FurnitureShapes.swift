@@ -185,4 +185,22 @@ enum FurnitureShapes {
     b.box(-w * 0.1, w * 0.1, consoleH, consoleH + neckH + 0.002, panelZ0, panelZ0 + panelT, darker(c, 0.8)) // neck
     b.box(-hx + m, hx - m, consoleH + neckH, h, panelZ0, panelZ0 + panelT, screen)  // screen panel
   }
+
+  /// A wall-mounted flat-panel TV: thin black panel `size.width` x `size.height`, ~0.05 deep, with a dark-grey
+  /// bezel and a slightly lighter screen face on local +Z. Bottom edge at y = 0, centred in x/z.
+  nonisolated static func wallTelevision(size: Dimensions) -> SCNNode {
+    let b = Builder(w: size.width, h: size.height, d: 0.05)
+    let hx = size.width / 2, h = size.height
+    let bezel = cl(min(size.width, h) * 0.03, 0.008, 0.03)
+    let black = CGColor(red: 0.04, green: 0.04, blue: 0.045, alpha: 1)
+    let grey = CGColor(red: 0.16, green: 0.16, blue: 0.17, alpha: 1)
+    let screen = CGColor(red: 0.09, green: 0.09, blue: 0.11, alpha: 1)
+    b.box(-hx, hx, 0, h, -0.025, 0.02, black)                                              // panel
+    b.box(-hx, hx, h - bezel, h, 0.02, 0.025, grey)                                        // bezel
+    b.box(-hx, hx, 0, bezel, 0.02, 0.025, grey)
+    b.box(-hx, -hx + bezel, bezel, h - bezel, 0.02, 0.025, grey)
+    b.box(hx - bezel, hx, bezel, h - bezel, 0.02, 0.025, grey)
+    b.box(-hx + bezel, hx - bezel, bezel, h - bezel, 0.02, 0.025, screen)                  // screen face
+    return b.container
+  }
 }
