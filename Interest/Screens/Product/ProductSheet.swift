@@ -13,7 +13,7 @@ struct ProductSheet: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
-        ProductThumbnail(product: product)
+        ProductThumbnail(product: product, contentMode: .fit)
           .frame(maxWidth: .infinity)
           .frame(height: 220)
           .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -84,11 +84,12 @@ struct ProductSheet: View {
 
 struct ProductThumbnail: View {
   let product: Product
+  var contentMode: ContentMode = .fill
 
   var body: some View {
     AsyncImage(url: product.thumbnailUrl) { phase in
       if let image = phase.image {
-        image.resizable().scaledToFill()
+        image.resizable().aspectRatio(contentMode: contentMode)
       } else {
         ZStack {
           Color(.systemGray5)
