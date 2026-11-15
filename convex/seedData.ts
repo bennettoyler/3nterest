@@ -4,12 +4,13 @@ type Category = Doc<"products">["category"];
 
 export const users = ["Maya Chen", "Jonas Weber", "Priya Nair", "Sam Okafor"];
 
-export const sellers: { key: string; name: string; kind: string; userIndex?: number }[] = [
-  { key: "nordhem", name: "Nordhem", kind: "brand" },
-  { key: "parcel", name: "Parcel Home", kind: "brand" },
-  { key: "maya", name: "Maya Chen Woodworks", kind: "creator", userIndex: 0 },
-  { key: "oakiron", name: "Oak & Iron Studio", kind: "creator" },
-  { key: "clayloft", name: "Clay Loft", kind: "creator" },
+// whopAccountId: sub-accounts under the Whop sandbox platform account biz_vCOXH8enY1QolG.
+export const sellers: { key: string; name: string; kind: string; userIndex?: number; whopAccountId: string }[] = [
+  { key: "nordhem", name: "Nordhem", kind: "brand", whopAccountId: "biz_YkK9KvOSUDDpqa" },
+  { key: "parcel", name: "Parcel Home", kind: "brand", whopAccountId: "biz_MndMZtFHBUnYAD" },
+  { key: "maya", name: "Maya Chen Woodworks", kind: "creator", userIndex: 0, whopAccountId: "biz_4TwpVkg5jsCGsd" },
+  { key: "oakiron", name: "Oak & Iron Studio", kind: "creator", whopAccountId: "biz_ZBhHDQXYiURYrb" },
+  { key: "clayloft", name: "Clay Loft", kind: "creator", whopAccountId: "biz_qU5oBxnADjQBBQ" },
 ];
 
 export const products: {
