@@ -20,7 +20,7 @@ struct ReceiptView: View {
       Section {
         LabeledContent("Amount paid", value: payDollars(order.amountCents))
         Text("\(order.sellerName) receives \(payDollars(order.sellerCents)) (95%)")
-        Text("Interest fee \(payDollars(order.platformFeeCents)) (5%)")
+        Text("3nterest fee \(payDollars(order.platformFeeCents)) (5%)")
       }
     }
   }

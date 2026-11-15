@@ -33,7 +33,7 @@ struct EarningsView: View {
             LabeledContent(order.productName, value: payDollars(order.amountCents))
               .font(.headline)
             Text("\(order.sellerName) receives \(payDollars(order.sellerCents)) (95%)")
-            Text("Interest fee \(payDollars(order.platformFeeCents)) (5%)")
+            Text("3nterest fee \(payDollars(order.platformFeeCents)) (5%)")
           }
           .font(.subheadline)
         }
@@ -41,7 +41,7 @@ struct EarningsView: View {
       Section("Totals") {
         LabeledContent("Sales", value: payDollars(orders.reduce(0) { $0 + $1.amountCents }))
         LabeledContent("Seller receives (95%)", value: payDollars(orders.reduce(0) { $0 + $1.sellerCents }))
-        LabeledContent("Interest fee (5%)", value: payDollars(orders.reduce(0) { $0 + $1.platformFeeCents }))
+        LabeledContent("3nterest fee (5%)", value: payDollars(orders.reduce(0) { $0 + $1.platformFeeCents }))
       }
     }
     .navigationTitle("Seller earnings")

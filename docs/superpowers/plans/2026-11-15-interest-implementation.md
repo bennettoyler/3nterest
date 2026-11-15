@@ -14,7 +14,7 @@
 
 - All code is written after 10:00 AM on 2026-11-15. Submission is 6:00 PM. Feature freeze is 4:30 PM.
 - Must use Capy, Revyl and Convex; must run on a real iPhone (LiDAR, Pro model) for the demo.
-- Native Swift only. Colors: YC orange `#FF6600` and white. App name "Interest", pin logo.
+- Native Swift only. Colors: YC orange `#FF6600` and white. App name "3nterest" (3D + Pinterest, pronounced "interest"); logo is a bold white sans-serif 3 on a YC-orange `#FF6600` square. Code identifiers (target, scheme, module, folders, bundle id, the `interest://` URL scheme) keep the name Interest.
 - Platform cut is 5% of every sale: `platformFeeCents = round(amountCents * 0.05)`, `sellerCents = amountCents - platformFeeCents`.
 - AI builder cutoff: 8 seconds, then the canned design.
 - Every network-dependent demo step has a canned fallback. No real auth: a hardcoded user switcher.

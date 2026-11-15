@@ -6,7 +6,7 @@ Status: draft for team approval. Items marked **[call]** are decisions made by t
 
 Interest is a Pinterest-style social app where every pin is a real 3D room. You scan your room with your iPhone, the app rebuilds it out of movable 3D furniture matched to purchasable products, you rearrange and add things, and you share it. Other people browse rooms for inspiration, save them to collections, remix them into their own room, and buy what they see.
 
-Name: "Interest" (a pun on Pinterest). Logo: a thumbtack/pin. Colors: YC orange and white.
+Name: "3nterest" (3D + Pinterest, pronounced "interest"). Logo: a bold white sans-serif 3 on a YC-orange `#FF6600` square. Colors: YC orange `#FF6600` and white. Code identifiers (target, scheme, module, folders, bundle id, the `interest://` URL scheme) keep the name Interest.
 
 ## 2. Why, and what winning looks like
 

@@ -75,7 +75,7 @@ struct RootTabView: View {
     } else {
       VStack(spacing: 16) {
         PinLogo(size: 72)
-        Text("Interest")
+        Text("3nterest")
           .font(.largeTitle.bold())
           .foregroundStyle(Theme.orange)
         ProgressView()
