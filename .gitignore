@@ -1,0 +1,10 @@
+*.xcodeproj
+Interest/App/Info.plist
+.DS_Store
+build/
+DerivedData/
+.build/
+xcuserdata/
+node_modules/
+.env
+.env.local
