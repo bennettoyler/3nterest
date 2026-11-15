@@ -4,7 +4,7 @@ Instructions for every coding agent (Claude Code, Capy, or other) working in thi
 
 ## What we are building
 
-Interest: a native iOS app where a LiDAR room scan becomes a room of movable, vendor-linked 3D products that can be bought through Whop, extended with AI-designed pieces, and shared to a Pinterest-style feed. It is a hackathon demo built in one day by three developers, each running agents.
+3nterest (3D + Pinterest, pronounced "interest"): a native iOS app where a LiDAR room scan becomes a room of movable, vendor-linked 3D products that can be bought through Whop, extended with AI-designed pieces, and shared to a Pinterest-style feed. It is a hackathon demo built in one day by three developers, each running agents.
 
 - Spec (what and why): `docs/superpowers/specs/2026-11-15-interest-prd.md`
 - Plan (how, task by task): `docs/superpowers/plans/2026-11-15-interest-implementation.md`
@@ -50,7 +50,7 @@ From the plan, read: the header, Global Constraints, Review Focus, File Map, Tas
 - Swift 5.10, SwiftUI, iOS 17+, SceneKit for 3D, RoomPlan for scanning.
 - Units: metres, Y up, floor at `y = 0`. Transforms are 16 floats, column-major. Money is integer cents. AI design parts are centimetres and degrees.
 - Platform fee is 5%: `platformFeeCents = round(amountCents * 0.05)`, `sellerCents = amountCents - platformFeeCents`.
-- Brand: name "Interest", YC orange `#FF6600` and white, pin logo.
+- Brand: the app's name is "3nterest" (3D + Pinterest, pronounced "interest"), the logo is a bold white sans-serif 3 on a YC-orange `#FF6600` square, and code identifiers (target, scheme, module, folders, bundle id, the `interest://` URL scheme) keep the name Interest. Colours are YC orange `#FF6600` and white.
 - Commit messages: `feat(room3d): …`, `feat(app): …`, `feat(backend): …`, `fix(…): …`.
 
 ## Commands
