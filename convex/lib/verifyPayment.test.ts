@@ -38,6 +38,8 @@ test("not found: no payments, another checkout's payment, unpaid or refunded pay
     { id: "pay_3", status: "paid", checkout_configuration_id: "ch_other" },
     { id: "pay_4", status: "open", checkout_configuration_id: "ch_1" },
     { id: "pay_5", status: "paid", substatus: "refunded", checkout_configuration_id: "ch_1" },
+    { id: "pay_6", status: "paid", substatus: "dispute_lost", checkout_configuration_id: "ch_1" },
+    { id: "pay_7", status: "paid", substatus: "resolution_lost", checkout_configuration_id: "ch_1" },
   ];
   expect(await verifyPayment(order, env, respond(200, { data: others }))).toEqual({ result: "not_found" });
 });
@@ -69,7 +71,18 @@ test("Whop timeout: aborted after the timeout and unverified", async () => {
   expect(Date.now() - start).toBeLessThan(1000);
 });
 
-test("Whop error response or network failure: unverified", async () => {
+test("Whop refuses the lookup (401, 403, 400, 429): not found, never paid", async () => {
+  for (const status of [401, 403, 400, 429]) {
+    expect(await verifyPayment(order, env, respond(status, {}))).toMatchObject({ result: "not_found" });
+  }
+});
+
+test("Whop answers 200 with an unreadable body: not found", async () => {
+  const html = (async () => new Response("<html>proxy error</html>", { status: 200 })) as typeof fetch;
+  expect(await verifyPayment(order, env, html)).toMatchObject({ result: "not_found" });
+});
+
+test("Whop 5xx or network failure: unverified", async () => {
   expect(await verifyPayment(order, env, respond(503, {}))).toMatchObject({ result: "unverified", reason: "whop_unreachable", detail: "HTTP 503" });
   const down = (async () => {
     throw new TypeError("fetch failed");
