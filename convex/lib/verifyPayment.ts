@@ -1,10 +1,10 @@
 // Decides whether an order may be marked paid. An order created through the real Whop path carries its
 // checkout configuration and the variant Whop created for it. Its seller sub-account's paid payments since
 // the order was created are listed, and the order is paid when one of them, not refunded or lost in a
-// dispute, links to it: its checkout_configuration_id is the order's, or its metadata.orderId is the order,
-// or, only for a payment carrying neither link, its variant_id is the order's. Whop reuses a variant across
-// checkout configurations for the same product, so a variant match alone could be another order's payment;
-// orders:markPaid therefore lets one payment confirm only one order. Orders without one (fallback checkout link), a missing WHOP_API_KEY, or a
+// dispute, links to it: its checkout_configuration_id is the order's, or its metadata.orderId (which Whop
+// copies from the checkout configuration) is the order. A matching variant_id is not enough: Whop reuses a
+// variant across checkout configurations for the same product, so it cannot tell two buyers' payments apart.
+// orders:markPaid also lets one payment confirm only one order. Orders without one (fallback checkout link), a missing WHOP_API_KEY, or a
 // Whop that does not answer in time (network error, timeout, 5xx) cannot be verified; the caller then keeps
 // the old behaviour and marks the order paid so the demo never dead-ends. Every other answer that is not a
 // readable list (any 4xx including 429, an unparsable body) is treated as no payment found, so neither a
@@ -29,7 +29,6 @@ type Payment = {
   substatus?: string;
   checkout_configuration_id?: string | null;
   metadata?: Record<string, unknown> | null;
-  variant_id?: string | null;
 };
 
 const REVERSED = new Set(["refunded", "auto_refunded", "dispute_lost", "resolution_lost"]);
@@ -69,15 +68,9 @@ export async function verifyPayment(
     const paid = (Array.isArray(body?.data) ? body.data : []).filter(
       (p) => p.id && p.status === "paid" && !REVERSED.has(p.substatus ?? ""),
     );
-    const payment =
-      paid.find((p) => p.checkout_configuration_id === order.whopCheckoutId || p.metadata?.orderId === order.orderId) ??
-      paid.find(
-        (p) =>
-          order.whopVariantId &&
-          p.variant_id === order.whopVariantId &&
-          !p.checkout_configuration_id &&
-          p.metadata?.orderId === undefined,
-      );
+    const payment = paid.find(
+      (p) => p.checkout_configuration_id === order.whopCheckoutId || p.metadata?.orderId === order.orderId,
+    );
     return payment?.id ? { result: "paid", paymentId: payment.id } : { result: "not_found" };
   } finally {
     clearTimeout(timer);

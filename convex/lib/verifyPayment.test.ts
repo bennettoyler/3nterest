@@ -32,12 +32,12 @@ test("paid: matched by metadata.orderId", async () => {
   expect(await verifyPayment(order, env, fetchFn)).toEqual({ result: "paid", paymentId: "pay_2" });
 });
 
-test("paid: matched by variant_id when the payment carries no checkout configuration or orderId", async () => {
+test("not found: a payment linked to the order only by its variant (another buyer may own it)", async () => {
   const fetchFn = respond(200, { data: [{ id: "pay_v", status: "paid", variant_id: "plan_1", checkout_configuration_id: null, metadata: null }] });
-  expect(await verifyPayment(order, env, fetchFn)).toEqual({ result: "paid", paymentId: "pay_v" });
+  expect(await verifyPayment(order, env, fetchFn)).toEqual({ result: "not_found" });
 });
 
-test("paid: an exact checkout configuration match wins over a variant-only match", async () => {
+test("paid: the linked payment is found among other payments on the same variant", async () => {
   const data = [
     { id: "pay_v", status: "paid", variant_id: "plan_1" },
     { id: "pay_ch", status: "paid", variant_id: "plan_1", checkout_configuration_id: "ch_1" },
