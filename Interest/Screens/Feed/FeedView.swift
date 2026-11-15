@@ -19,13 +19,13 @@ struct FeedView: View {
     .overlay {
       if rooms.isEmpty { ProgressView() }
     }
-    .navigationTitle("Interest")
+    .navigationTitle("3nterest")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       ToolbarItem(placement: .principal) {
         HStack(spacing: 8) {
           PinLogo()
-          Text("Interest")
+          Text("3nterest")
             .font(.title3.bold())
             .foregroundStyle(Theme.orange)
         }

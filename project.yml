@@ -23,8 +23,8 @@ targets:
     info:
       path: Interest/App/Info.plist
       properties:
-        CFBundleDisplayName: Interest
-        NSCameraUsageDescription: Interest uses the camera and LiDAR to scan your room.
+        CFBundleDisplayName: 3nterest
+        NSCameraUsageDescription: 3nterest uses the camera and LiDAR to scan your room.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -37,7 +37,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.interest.app
         TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
   InterestTests:
     type: bundle.unit-test
