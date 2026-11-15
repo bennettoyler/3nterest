@@ -70,15 +70,19 @@ final class ConvexBackend: Backend, @unchecked Sendable {
   }
 
   func generateDesign(prompt: String, userId: String) async throws -> Design {
-    throw BackendError.notImplemented
+    let design: DesignDTO = try await action("designs:generate", ["prompt": prompt, "userId": userId])
+    return design.design
   }
 
   func designs(ids: [String]) async throws -> [Design] {
-    throw BackendError.notImplemented
+    let designs: [DesignDTO] = try await query("designs:byIds", ["ids": ids.map { $0 as ConvexEncodable? }])
+    return designs.map(\.design)
   }
 
   func listForSale(designId: String, priceCents: Int) async throws -> Product {
-    throw BackendError.notImplemented
+    let product: ProductDTO = try await mutation(
+      "designs:listForSale", ["designId": designId, "priceCents": Double(priceCents)])
+    return product.product
   }
 
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout {
@@ -155,5 +159,37 @@ private struct ProductDTO: Decodable {
       id: id, sellerId: sellerId, sellerName: sellerName, name: name, category: category,
       priceCents: Int(priceCents.rounded()), dimensions: dimensions, modelUrl: modelUrl,
       thumbnailUrl: thumbnailUrl, instructionsUrl: instructionsUrl, vendorUrl: vendorUrl, designId: designId)
+  }
+}
+
+private struct CutItemDTO: Decodable {
+  var part: String
+  var material: String
+  var lengthCm: Float
+  var widthCm: Float
+  var thicknessCm: Float
+  @ConvexFloat var quantity: Double
+
+  var cutItem: CutItem {
+    CutItem(
+      part: part, material: material, lengthCm: lengthCm, widthCm: widthCm, thicknessCm: thicknessCm,
+      quantity: Int(quantity.rounded()))
+  }
+}
+
+private struct DesignDTO: Decodable {
+  var id: String
+  var ownerId: String
+  var prompt: String
+  var title: String
+  var parts: [DesignPart]
+  var cutList: [CutItemDTO]
+  var hardware: [String]
+  var steps: [String]
+
+  var design: Design {
+    Design(
+      id: id, ownerId: ownerId, prompt: prompt, title: title, parts: parts, cutList: cutList.map(\.cutItem),
+      hardware: hardware, steps: steps)
   }
 }

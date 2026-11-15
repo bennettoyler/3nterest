@@ -9,8 +9,12 @@
  */
 
 import type * as collections from "../collections.js";
+import type * as designs from "../designs.js";
 import type * as files from "../files.js";
+import type * as lib_cannedDesigns from "../lib/cannedDesigns.js";
+import type * as lib_designSchema from "../lib/designSchema.js";
 import type * as lib_shape from "../lib/shape.js";
+import type * as lib_split from "../lib/split.js";
 import type * as products from "../products.js";
 import type * as rooms from "../rooms.js";
 import type * as seed from "../seed.js";
@@ -26,8 +30,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   collections: typeof collections;
+  designs: typeof designs;
   files: typeof files;
+  "lib/cannedDesigns": typeof lib_cannedDesigns;
+  "lib/designSchema": typeof lib_designSchema;
   "lib/shape": typeof lib_shape;
+  "lib/split": typeof lib_split;
   products: typeof products;
   rooms: typeof rooms;
   seed: typeof seed;
