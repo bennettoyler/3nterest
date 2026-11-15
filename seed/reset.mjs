@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Demo reset (Task Z step 3), add-only: seed:run adds missing seeded rows (plus scan-built rooms from the
-// newest seed/scans/*.json), seed/upload.mjs fills missing files, then smoke checks print PASS or FAIL and
-// delete only the order and design they created. Nothing else is deleted or overwritten. Exits 1 on failure.
+// Demo reset (Task Z step 3): seed:run adds missing seeded rows (plus scan-built rooms from the newest
+// seed/scans/*.json), seed:correctSeeded and replace-placeholders.mjs update values only while they are still
+// what an earlier seed wrote, upload.mjs fills missing files, then smoke checks print PASS or FAIL and delete
+// only the order and design they created. Nothing the app or a person changed is touched. Exits 1 on failure.
 // Arguments go to `npx convex run`, e.g. `npm run demo:reset -- --prod`.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
@@ -31,7 +32,9 @@ const scan = scans[0] ? JSON.parse(readFileSync(scans[0], "utf8")) : undefined;
 
 console.log(`Seeding from ${scans[0] ?? "Interest/Shared/SampleRoom.json"}`);
 console.log(run("seed:run", scan ? { scan } : {}));
+console.log("Corrected earlier seed values:", run("seed:correctSeeded", scan ? { scan } : {}));
 execFileSync("node", [join(root, "upload.mjs"), ...flags], { stdio: "inherit" });
+execFileSync("node", [join(root, "replace-placeholders.mjs"), ...flags], { stdio: "inherit" });
 
 let failed = 0;
 const check = (name, ok, detail) => {

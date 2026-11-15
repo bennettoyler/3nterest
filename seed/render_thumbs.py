@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# Renders seed/thumbs/*.jpg from seed/models/*.usdz and the seeded rooms (SampleRoom.json shell).
+# Renders seed/thumbs/*.jpg from seed/models/*.usdz and the seeded rooms as deployed (seed:roomPicks).
 # Needs: pip install usd-core pyrender trimesh pillow 'numpy<2' 'scipy<1.14' PyOpenGL==3.1.7; run with PYOPENGL_PLATFORM=egl.
-import io, json, os, sys, zipfile
+import io, json, os, subprocess, sys, zipfile
 import numpy as np
 np.infty = np.inf
 from PIL import Image
@@ -155,20 +155,17 @@ ROOM_STYLES = [
 ]
 
 
-def seed_data():
-    src = open(os.path.join(REPO, "convex", "seedData.ts")).read()
-    import re
-    products = [dict(slug=m[0], category=m[1], size=[float(x) for x in m[2].split(",")])
-                for m in re.findall(r'slug: "([^"]+)".*?category: "([^"]+)".*?size: \[([^\]]+)\]', src)]
-    rooms = re.findall(r'\{ slug: "([^"]+)", title:', src)
-    return products, rooms
+def room_picks():
+    # The seeded rooms as deployed (seed:roomPicks), so each thumbnail shows the products the room really holds.
+    # CONVEX_RUN_FLAGS go to npx convex run, e.g. CONVEX_RUN_FLAGS=--prod.
+    cmd = ["npx", "convex", "run", *os.environ.get("CONVEX_RUN_FLAGS", "").split(), "seed:roomPicks"]
+    return json.loads(subprocess.run(cmd, cwd=REPO, check=True, capture_output=True, text=True).stdout)
 
 
 def room_thumbs(renderer):
-    products, rooms = seed_data()
-    room = json.load(open(os.path.join(REPO, "Interest", "Shared", "SampleRoom.json")))
     meshes = {}
-    for i, slug in enumerate(rooms):
+    for i, room in enumerate(r for r in room_picks() if not r["slug"].endswith("-scan")):
+        slug = room["slug"]
         wall_c, floor_c, (sx, sz) = ROOM_STYLES[i % len(ROOM_STYLES)]
         scene = pyrender.Scene(bg_color=[1, 1, 1, 1], ambient_light=[0.5, 0.5, 0.5])
         eye = np.array([4.9 * sx, 5.6, 5.6 * sz])
@@ -190,13 +187,9 @@ def room_thumbs(renderer):
         rug = box([1.9, 0.01, 1.3], [0, 0.005, 0], (1.0, 0.4, 0.0) if i % 3 == 0 else (0.9, 0.87, 0.82) if i % 3 == 1 else (0.55, 0.6, 0.62))
         scene.add(rug, pose=tf([1,0,0,0,0,1,0,0,0,0,1,0,0,0,-0.9,1]))
         for p in room["placements"]:
-            s = p.get("scannedSize")
-            cands = [q for q in products if q["category"] == p["category"]]
-            if s:
-                cands.sort(key=lambda q: abs(q["size"][0] - s["width"]) + abs(q["size"][1] - s["depth"]) + abs(q["size"][2] - s["height"]))
-            if not cands:
+            prod = p["product"]
+            if not prod:
                 continue
-            prod = cands[i % len(cands)]["slug"]
             if prod not in meshes:
                 meshes[prod] = load_usdz(os.path.join(MODELS, prod + ".usdz"))
             scene.add(meshes[prod], pose=tf(p["transform"]))
