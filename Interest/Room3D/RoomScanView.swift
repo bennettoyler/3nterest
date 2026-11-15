@@ -17,6 +17,16 @@ struct RoomScanView: View {
 
   private let orange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
+  private var exportURL: URL? { ScanExport.lastScanURL }
+
+  @ViewBuilder private var exportButton: some View {
+    if let url = exportURL {
+      ShareLink(item: url) {
+        Text("Export last scan").font(.footnote).foregroundStyle(.secondary)
+      }
+    }
+  }
+
   var body: some View {
     ZStack {
       if RoomCaptureSession.isSupported {
@@ -30,7 +40,8 @@ struct RoomScanView: View {
             Button("Done") { scanner.stop() }
               .buttonStyle(.borderedProminent).tint(orange)
           }
-          .padding(.bottom, 24)
+          .padding(.bottom, exportURL == nil ? 24 : 8)
+          exportButton.padding(.bottom, 16)
         }
       } else {
         VStack(spacing: 16) {
@@ -38,6 +49,7 @@ struct RoomScanView: View {
             .multilineTextAlignment(.center)
           Button("Use sample room") { finishWithSample() }
             .buttonStyle(.borderedProminent).tint(orange)
+          exportButton
         }
         .padding()
       }
@@ -55,7 +67,9 @@ struct RoomScanView: View {
     .onAppear {
       scanner.onResult = { captured in
         if let captured {
-          finish(with: CapturedRoomConverter.room(from: captured, ownerId: owner.id, ownerName: owner.name, products: products))
+          let room = CapturedRoomConverter.room(from: captured, ownerId: owner.id, ownerName: owner.name, products: products)
+          _ = ScanExport.save(room)
+          finish(with: room)
         } else {
           finishWithSample()
         }
@@ -85,6 +99,35 @@ struct RoomScanView: View {
     guard !matching else { return }
     withAnimation { matching = true }
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) { onFinish(room) }
+  }
+}
+
+/// Saves the last real scan as JSON so it can be exported from the phone.
+enum ScanExport {
+  static var lastScanURL: URL? {
+    guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+    let url = dir.appendingPathComponent("LastScan.json")
+    return FileManager.default.fileExists(atPath: url.path) ? url : nil
+  }
+
+  @discardableResult
+  static func save(_ room: Room) -> URL? {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    guard let data = try? encoder.encode(room) else { return nil }
+    if let text = String(data: data, encoding: .utf8) {
+      print("===== INTEREST SCAN JSON BEGIN =====")
+      print(text)
+      print("===== INTEREST SCAN JSON END =====")
+    }
+    guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+    let url = dir.appendingPathComponent("LastScan.json")
+    do {
+      try data.write(to: url, options: .atomic)
+      return url
+    } catch {
+      return nil
+    }
   }
 }
 

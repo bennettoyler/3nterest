@@ -66,8 +66,13 @@ private struct EditorSceneView: UIViewRepresentable {
         c.refreshSelection(force: true)
 
         if let onSnapshot {
-            let snapshot: () -> Data? = { [weak view] in
-                view?.snapshot().jpegData(compressionQuality: 0.8)
+            let snapshot: () -> Data? = { [weak view, weak c] in
+                // Hide the selection overlay so thumbnails never show selection.
+                let overlayNode = c?.currentOverlay
+                let wasHidden = overlayNode?.isHidden ?? true
+                overlayNode?.isHidden = true
+                defer { overlayNode?.isHidden = wasHidden }
+                return view?.snapshot().jpegData(compressionQuality: 0.8)
             }
             DispatchQueue.main.async { onSnapshot(snapshot) }
         }
@@ -91,6 +96,7 @@ private struct EditorSceneView: UIViewRepresentable {
         private var signatures: [String: String] = [:]
         private var shownSelectionId: String?
         private var overlay: SCNNode?
+        var currentOverlay: SCNNode? { overlay }
         private var grabOffset = SIMD2<Float>(0, 0)
         private var tagNode: SCNNode?
         private var tagTextHeight: CGFloat = 10
