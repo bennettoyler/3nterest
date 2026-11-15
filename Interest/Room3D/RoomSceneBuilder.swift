@@ -21,10 +21,13 @@ enum RoomSceneBuilder {
     }
 
     // Surfaces: single-sided planes facing the room centre (dollhouse view)
+    let decorated = RoomDecor.matches(room.shell)
     for w in room.shell.walls {
-      root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0, color: CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)))
+      let color = RoomDecor.wallColor(for: w, in: room.shell) ?? CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)
+      root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0, color: color))
     }
-    for d in room.shell.doors {
+    // Decor doors fully cover the plain door quads; blinds leave a border, so window quads stay.
+    for d in room.shell.doors where !decorated {
       root.addChildNode(surfaceNode(d, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.30, blue: 0.18, alpha: 1)))
     }
     for w in room.shell.windows {
@@ -32,7 +35,9 @@ enum RoomSceneBuilder {
     }
     let floor = SCNNode(geometry: floorGeometry(hull))
     floor.name = "floor"
+    if let fc = RoomDecor.floorColor(for: room.shell) { floor.geometry?.firstMaterial?.diffuse.contents = fc }
     root.addChildNode(floor)
+    for n in RoomDecor.nodes(for: room.shell) { root.addChildNode(n) }
 
     // Placements
     for p in room.placements {
@@ -155,7 +160,12 @@ enum RoomSceneBuilder {
     container.name = placement.id
     if placement.transform.count == 16 { container.transform = placement.transform.scnMatrix }
 
-    if let pid = placement.productId, let product = products.first(where: { $0.id == pid }) {
+    let wallTV = placement.category == .television && placement.transform.count == 16 && placement.transform[13] > 0.3
+    if wallTV {
+      let product = placement.productId.flatMap { pid in products.first(where: { $0.id == pid }) }
+      let size = product?.dimensions ?? placement.scannedSize ?? Dimensions(width: 1.2, depth: 0.06, height: 0.7)
+      container.addChildNode(FurnitureShapes.wallTelevision(size: size))
+    } else if let pid = placement.productId, let product = products.first(where: { $0.id == pid }) {
       container.addChildNode(ModelCache.fallbackBox(for: product))
       let placeholder = container.childNodes.first
       Task {
@@ -169,6 +179,10 @@ enum RoomSceneBuilder {
       container.addChildNode(DesignNodeBuilder.node(for: design))
     } else {
       let size = placement.scannedSize ?? Dimensions(width: 0.5, depth: 0.5, height: 0.5)
+      if let pid = placement.productId, let shape = FurnitureShapes.node(forUnmatchedProductId: pid, size: size) {
+        container.addChildNode(shape)
+        return container
+      }
       container.addChildNode(ModelCache.boxNode(size: size, color: CGColor(red: 0.62, green: 0.62, blue: 0.64, alpha: 1)))
     }
     return container

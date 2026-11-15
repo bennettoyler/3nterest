@@ -30,7 +30,7 @@ enum RoomDecor {
     out.append(plant(at: SCNVector3(-1.5, 0, 2.5), name: "decor-plant-1"))
     out.append(plant(at: SCNVector3(3.4, 0, 2.5), name: "decor-plant-2"))
     out.append(trashCan())
-    out.append(wallClock())
+    // The clock hangs on a wall the default camera looks through, so it is left out.
     for (i, w) in shell.windows.enumerated() where w.transform.count == 16 { out.append(blinds(w, index: i)) }
     for (i, d) in shell.doors.enumerated() where d.transform.count == 16 { out.append(door(d, index: i)) }
     out.append(chairStack(at: SCNVector3(-3.45, 0, -1.3), name: "decor-chairs-1"))
@@ -83,7 +83,7 @@ enum RoomDecor {
 
   private static func rug() -> SCNNode {
     let n = container("decor-rug", at: SCNVector3(0.6, 0.006, 0.2))
-    box(n, 5.0, 0.01, 3.6, at: SCNVector3Zero, hex(0xE4D9C6))
+    box(n, 5.0, 0.01, 3.6, at: SCNVector3Zero, hex(0xC9BFAE))
     return n
   }
 
@@ -160,13 +160,25 @@ enum RoomDecor {
     return dot >= 0 ? 1 : -1
   }
 
+  /// Single-sided plane facing the room, so it vanishes when the wall is seen from outside (dollhouse view).
+  private static func panel(_ parent: SCNNode, _ w: Float, _ h: Float, at p: SCNVector3, facing sign: Float, _ c: CGColor) {
+    let g = SCNPlane(width: CGFloat(w), height: CGFloat(h))
+    let m = material(c)
+    m.isDoubleSided = false
+    g.materials = [m]
+    let n = SCNNode(geometry: g)
+    n.position = p
+    if sign < 0 { n.eulerAngles.y = .pi }
+    parent.addChildNode(n)
+  }
+
   private static func blinds(_ w: Surface, index: Int) -> SCNNode {
     let n = SCNNode()
     n.name = "decor-blinds-\(index)"
     n.transform = w.transform.scnMatrix
-    let z = roomSideSign(w) * 0.02
-    box(n, w.width * 0.94, w.height * 0.92, 0.01, at: SCNVector3(0, -w.height * 0.02, z), hex(0xC9D3DC))
-    box(n, w.width * 1.0, 0.07, 0.05, at: SCNVector3(0, w.height * 0.5 - 0.035, z + roomSideSign(w) * 0.015), hex(0xF1EFE9))
+    let s = roomSideSign(w)
+    panel(n, w.width * 0.94, w.height * 0.92, at: SCNVector3(0, -w.height * 0.02, s * 0.02), facing: s, hex(0xC9D3DC))
+    panel(n, w.width * 1.0, 0.07, at: SCNVector3(0, w.height * 0.5 - 0.035, s * 0.03), facing: s, hex(0xF1EFE9))
     return n
   }
 

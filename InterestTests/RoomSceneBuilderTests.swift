@@ -45,4 +45,24 @@ final class RoomSceneBuilderTests: XCTestCase {
     XCTAssertEqual(Float(hi.z - lo.z), expD, accuracy: 1e-3)
     XCTAssertEqual(Float(hi.y - lo.y), 0, accuracy: 1e-6)
   }
+
+  func testSampleRoomSceneHasDecorAndEveryPlacement() async throws {
+    let room = StubBackend.sampleRoom()
+    let products = try await StubBackend().products()
+    let scene = RoomSceneBuilder.scene(for: room, products: products, designs: [])
+    XCTAssertNotNil(scene.rootNode.childNode(withName: "decor-rug", recursively: true))
+    for p in room.placements {
+      XCTAssertNotNil(scene.rootNode.childNode(withName: p.id, recursively: true), p.id)
+    }
+  }
+
+  func testWallMountedTelevisionIsThin() {
+    let pl = Placement(id: "tv1", transform: transformArray(position: [0, 1.2, 0], yawRadians: 0),
+                       productId: nil, designId: nil, category: .television,
+                       scannedSize: .init(width: 1.8, depth: 0.5, height: 1.0))
+    let node = RoomSceneBuilder.placementNode(for: pl, products: [], designs: [])
+    let child = node.childNodes.first!
+    let (lo, hi) = child.boundingBox
+    XCTAssertLessThan(hi.z - lo.z, 0.15)
+  }
 }
