@@ -58,7 +58,8 @@ Use Apple RoomPlan (LiDAR, iPhone Pro) instead of Gaussian splatting.
 P0 — must be in the demo
 - **Scan → rebuilt room.** Scan screen, then a short "matching your furniture" animation, then the editable room.
 - **Room editor.** Orbit/zoom camera, tap to select, drag, rotate, delete, swap. Tap an object to open its product sheet.
-- **Product sheet.** Name, seller, price, dimensions, "Assembly instructions" (opens a PDF or step list), "Buy", "Save".
+- **Product sheet.** Name, seller, price, dimensions, "Assembly instructions" (opens a PDF or step list), "Buy", "Save", and "View at vendor".
+- **Vendor links.** Every movable object in a room is tied to its vendor. Selecting an object shows a small tag above it with the vendor name and price; "View at vendor" on the product sheet opens that product's vendor page in an in-app browser. The links are seeded per product and may be fake: either a real vendor product page for a similar item or a placeholder page. The link stays with the object when it is moved, swapped in, remixed or viewed in someone else's room. AI-built designs link to their creator's listing instead.
 - **Add from catalog.** Browse seeded products by category and drop one into the room.
 - **Publish and feed.** Publish a room with a title and an auto-captured thumbnail. Home is a two-column masonry feed of rooms. Opening a room shows it in 3D, read-only, with its item list.
 - **Buy with Whop.** "Buy" opens a Whop checkout for that product; on return, show a receipt with the seller/Interest split and record an order. See "Payments model" below.
@@ -112,7 +113,7 @@ These are what let three people work without blocking each other. Dev 3 owns the
 Data (Convex tables)
 - `users`: name, avatar.
 - `sellers`: name, kind (brand or creator), logo, optional linked user, Whop sub-account id.
-- `products`: seller, name, category, price, dimensions (w/d/h in metres), model file, thumbnail, instructions, checkout link, optional source design.
+- `products`: seller, name, category, price, dimensions (w/d/h in metres), model file, thumbnail, instructions, vendor link, checkout link, optional source design.
 - `rooms`: owner, title, thumbnail, published flag, shell, placements, optional remixed-from room.
 - `designs`: owner, prompt, parts, cut list, steps.
 - `collections` and `collectionItems`: owner, name; item is a room or a product.
