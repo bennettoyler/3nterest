@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "convex dev",
     "deploy": "convex deploy",
-    "seed": "convex run seed:run && node seed/upload.mjs",
+    "seed": "node seed/reset.mjs",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p convex"
+    "typecheck": "tsc --noEmit -p convex",
+    "demo:reset": "node seed/reset.mjs"
   },
   "dependencies": {
     "convex": "^1.50.0"

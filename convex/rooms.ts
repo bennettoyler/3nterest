@@ -3,6 +3,7 @@ import { mutation, query, type MutationCtx } from "./_generated/server";
 import type { Infer } from "convex/values";
 import { placement, roomShell } from "./schema";
 import { toRoom } from "./lib/shape";
+import { rankByFit } from "./lib/match";
 
 export const feed = query({
   args: {},
@@ -50,7 +51,7 @@ const stubProductSlugs: Record<string, string> = {
 };
 
 // A productId that is not a Convex product id is mapped to the seeded product it stands for, else to
-// any product of the placement's category, else dropped so the app draws a box.
+// the product of the placement's category closest to its scanned size, else dropped so the app draws a box.
 async function resolveProducts(ctx: MutationCtx, placements: Infer<typeof placement>[]) {
   return await Promise.all(
     placements.map(async ({ productId, ...rest }) => {
@@ -60,10 +61,14 @@ async function resolveProducts(ctx: MutationCtx, placements: Infer<typeof placem
       const slug = stubProductSlugs[productId];
       const match =
         (slug && (await ctx.db.query("products").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())) ||
-        (await ctx.db
-          .query("products")
-          .filter((q) => q.eq(q.field("category"), rest.category))
-          .first());
+        rankByFit(
+          await ctx.db
+            .query("products")
+            .filter((q) => q.eq(q.field("category"), rest.category))
+            .collect(),
+          rest.category,
+          rest.scannedSize,
+        )[0];
       return match ? { ...rest, productId: match._id as string } : rest;
     }),
   );

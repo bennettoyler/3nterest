@@ -43,13 +43,17 @@ export const products: {
   { slug: "rattan-armchair", seller: "clayloft", name: "Rattan Armchair", category: "chair", priceCents: 22900, size: [0.75, 0.75, 0.8] },
 ];
 
-export const rooms: { slug: string; title: string; ownerIndex: number; picks: Partial<Record<Category, string>> }[] = [
-  { slug: "sunlit-living-room", title: "Sunlit Living Room", ownerIndex: 0, picks: { sofa: "linnea-3-seat-sofa", table: "birk-coffee-table", chair: "harbor-lounge-chair", television: "vista-55-tv" } },
-  { slug: "cozy-reading-corner", title: "Cozy Reading Corner", ownerIndex: 1, picks: { sofa: "linnea-3-seat-sofa", table: "round-side-table", chair: "rattan-armchair", television: "vista-55-tv" } },
-  { slug: "minimal-studio", title: "Minimal Studio", ownerIndex: 2, picks: { sofa: "linnea-3-seat-sofa", table: "birk-coffee-table", chair: "strand-desk-chair", television: "orbit-65-tv" } },
-  { slug: "scandi-lounge", title: "Scandi Lounge", ownerIndex: 3, picks: { sofa: "cloud-sectional-sofa", table: "birk-coffee-table", chair: "walnut-dining-chair", television: "vista-55-tv" } },
-  { slug: "movie-night-den", title: "Movie Night Den", ownerIndex: 0, picks: { sofa: "cloud-sectional-sofa", table: "round-side-table", chair: "harbor-lounge-chair", television: "orbit-65-tv" } },
-  { slug: "warm-walnut-living", title: "Warm Walnut Living", ownerIndex: 1, picks: { sofa: "linnea-3-seat-sofa", table: "live-edge-dining-table", chair: "walnut-dining-chair", television: "vista-55-tv" } },
-  { slug: "industrial-loft", title: "Industrial Loft", ownerIndex: 2, picks: { sofa: "cloud-sectional-sofa", table: "live-edge-dining-table", chair: "iron-cafe-chair", television: "orbit-65-tv" } },
-  { slug: "clay-and-cane", title: "Clay and Cane", ownerIndex: 3, picks: { sofa: "linnea-3-seat-sofa", table: "round-side-table", chair: "rattan-armchair", television: "vista-55-tv" } },
+// Published demo rooms, all built from one scan (seed/scans/*.json, else SampleRoom.json). Room i takes
+// the i-th best-fitting product of each placement's category, so the rooms show different products.
+export const rooms: { slug: string; title: string; ownerIndex: number }[] = [
+  { slug: "sunlit-living-room", title: "Sunlit Living Room", ownerIndex: 0 },
+  { slug: "cozy-reading-corner", title: "Cozy Reading Corner", ownerIndex: 1 },
+  { slug: "minimal-studio", title: "Minimal Studio", ownerIndex: 2 },
+  { slug: "scandi-lounge", title: "Scandi Lounge", ownerIndex: 3 },
+  { slug: "movie-night-den", title: "Movie Night Den", ownerIndex: 0 },
+  { slug: "warm-walnut-living", title: "Warm Walnut Living", ownerIndex: 1 },
+  { slug: "industrial-loft", title: "Industrial Loft", ownerIndex: 2 },
+  { slug: "clay-and-cane", title: "Clay and Cane", ownerIndex: 3 },
+  { slug: "weekend-guest-room", title: "Weekend Guest Room", ownerIndex: 0 },
+  { slug: "makers-corner", title: "Maker's Corner", ownerIndex: 2 },
 ];
