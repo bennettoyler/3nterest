@@ -53,6 +53,13 @@ export const markPaid = internalMutation({
     const order = await ctx.db.get(id);
     if (!order) throw new Error(`Order ${id} not found`);
     if (order.status === "paid") return toOrder(order);
+    if (whopPaymentId) {
+      const claimed = await ctx.db
+        .query("orders")
+        .withIndex("by_whop_payment", (q) => q.eq("whopPaymentId", whopPaymentId))
+        .first();
+      if (claimed && claimed._id !== id) return null;
+    }
     const patch = { status: "paid" as const, ...(whopPaymentId ? { whopPaymentId } : {}) };
     await ctx.db.patch(id, patch);
     return toOrder({ ...order, ...patch });
@@ -81,10 +88,15 @@ export const confirm = action({
     if (verdict.result === "unverified") {
       console.warn(`Order ${id}: payment not verified (${verdict.reason}${verdict.detail ? `: ${verdict.detail}` : ""}), marked paid`);
     }
-    return await ctx.runMutation(internal.orders.markPaid, {
+    const paid = await ctx.runMutation(internal.orders.markPaid, {
       id,
       whopPaymentId: verdict.result === "paid" ? verdict.paymentId : undefined,
     });
+    if (!paid) {
+      console.log(`Order ${id}: Whop payment already confirmed another order, left pending`);
+      throw new ConvexError(`PAYMENT_NOT_FOUND: no successful Whop payment for order ${id} yet`);
+    }
+    return paid;
   },
 });
 
