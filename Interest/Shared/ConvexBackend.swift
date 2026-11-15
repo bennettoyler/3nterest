@@ -3,7 +3,7 @@ import ConvexMobile
 import Foundation
 
 final class ConvexBackend: Backend, @unchecked Sendable {
-  enum BackendError: Error { case notImplemented, noResult, uploadFailed, timedOut }
+  enum BackendError: Error { case noResult, uploadFailed, timedOut }
 
   private let client: ConvexClient
 
@@ -86,15 +86,17 @@ final class ConvexBackend: Backend, @unchecked Sendable {
   }
 
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout {
-    throw BackendError.notImplemented
+    try await action("payments:createCheckout", ["productId": productId, "buyerId": buyerId])
   }
 
   func confirmOrder(id: String) async throws -> Order {
-    throw BackendError.notImplemented
+    let order: OrderDTO = try await mutation("orders:confirm", ["id": id])
+    return order.order
   }
 
   func earnings(sellerId: String) async throws -> [Order] {
-    throw BackendError.notImplemented
+    let orders: [OrderDTO] = try await query("orders:bySeller", ["sellerId": sellerId])
+    return orders.map(\.order)
   }
 
   func seller(forUserId: String) async throws -> Seller? {
@@ -191,5 +193,24 @@ private struct DesignDTO: Decodable {
     Design(
       id: id, ownerId: ownerId, prompt: prompt, title: title, parts: parts, cutList: cutList.map(\.cutItem),
       hardware: hardware, steps: steps)
+  }
+}
+
+private struct OrderDTO: Decodable {
+  var id: String
+  var productId: String
+  var productName: String
+  var sellerId: String
+  var sellerName: String
+  @ConvexFloat var amountCents: Double
+  @ConvexFloat var platformFeeCents: Double
+  @ConvexFloat var sellerCents: Double
+  var status: OrderStatus
+
+  var order: Order {
+    Order(
+      id: id, productId: productId, productName: productName, sellerId: sellerId, sellerName: sellerName,
+      amountCents: Int(amountCents.rounded()), platformFeeCents: Int(platformFeeCents.rounded()),
+      sellerCents: Int(sellerCents.rounded()), status: status)
   }
 }

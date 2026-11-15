@@ -15,6 +15,8 @@ import type * as lib_cannedDesigns from "../lib/cannedDesigns.js";
 import type * as lib_designSchema from "../lib/designSchema.js";
 import type * as lib_shape from "../lib/shape.js";
 import type * as lib_split from "../lib/split.js";
+import type * as orders from "../orders.js";
+import type * as payments from "../payments.js";
 import type * as products from "../products.js";
 import type * as rooms from "../rooms.js";
 import type * as seed from "../seed.js";
@@ -36,6 +38,8 @@ declare const fullApi: ApiFromModules<{
   "lib/designSchema": typeof lib_designSchema;
   "lib/shape": typeof lib_shape;
   "lib/split": typeof lib_split;
+  orders: typeof orders;
+  payments: typeof payments;
   products: typeof products;
   rooms: typeof rooms;
   seed: typeof seed;
