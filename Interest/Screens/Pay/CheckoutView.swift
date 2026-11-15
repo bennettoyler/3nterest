@@ -47,14 +47,31 @@ struct CheckoutView: View {
           CheckoutSafariView(url: checkoutURL) { showingCheckout = false }
             .ignoresSafeArea(edges: .top)
         }
+        if let confirmError = flow.confirmError {
+          Label(confirmError, systemImage: "exclamationmark.circle.fill")
+            .font(.subheadline)
+            .foregroundStyle(.red)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+            .padding(.top, 12)
+        }
         Button {
           guard case .inCheckout(let orderId) = flow.state, let url = URL(string: "interest://paid?order=\(orderId)") else { return }
           Task { await flow.handleReturn(url: url) }
         } label: {
-          Label("I've paid — Done", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
+          if flow.isConfirming {
+            HStack(spacing: 8) {
+              ProgressView()
+              Text("Checking payment…")
+            }
+            .frame(maxWidth: .infinity)
+          } else {
+            Label("I've paid — check payment", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
+          }
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .disabled(flow.isConfirming)
         .padding()
       }
     }
