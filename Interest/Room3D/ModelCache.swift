@@ -37,9 +37,11 @@ actor ModelCache {
     return Self.fallbackBox(for: product)
   }
 
-  /// Coloured box at product.dimensions, base at y = 0, centred in x/z.
+  /// Simple per-category furniture shape (plain box for .other) at product.dimensions, base at y = 0, centred in x/z.
   nonisolated static func fallbackBox(for product: Product) -> SCNNode {
-    boxNode(size: product.dimensions, color: furnitureColor(for: product.category))
+    let color = furnitureColor(for: product.category)
+    return FurnitureShapes.node(category: product.category, size: product.dimensions, base: color)
+      ?? boxNode(size: product.dimensions, color: color)
   }
 
   /// Calm neutral furniture colours; orange is reserved for selection.
