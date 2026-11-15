@@ -3,7 +3,7 @@ import { internalMutation } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import sampleRoom from "../Interest/Shared/SampleRoom.json";
 import * as data from "./seedData";
-import { rankByFit } from "./lib/match";
+import { rankByFit, sizeDistance } from "./lib/match";
 
 type Category = Doc<"products">["category"];
 type Size = { width: number; depth: number; height: number };
@@ -36,27 +36,26 @@ function roomTemplate(scan: any) {
   };
 }
 
-const clearedTables = ["orders", "collections", "rooms", "designs"] as const;
-
-// Clears and reinserts the demo data. Users, sellers and products are upserted by name or slug, so
-// their ids survive a reseed; rooms, designs, orders and collections are recreated. File URLs are
-// cleared with storage; run seed/upload.mjs afterwards.
+// Upserts the seeded users, sellers and products by name or slug, keeping their ids and file URLs, and
+// inserts any missing seeded room. Existing seeded rooms are left as they are, because the app can save
+// over them; replaceRooms rebuilds them from the scan. Rows the app created are never touched.
+// Run seed/upload.mjs afterwards to attach new files.
 export const run = internalMutation({
-  args: { scan: v.optional(v.any()) },
-  handler: async (ctx, { scan }) => {
-    for (const table of clearedTables) {
-      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
-    }
-    for (const file of await ctx.db.system.query("_storage").collect()) await ctx.storage.delete(file._id);
-
+  args: { scan: v.optional(v.any()), replaceRooms: v.optional(v.boolean()) },
+  handler: async (ctx, { scan, replaceRooms }) => {
     const existingUsers = await ctx.db.query("users").collect();
     const userIds: Id<"users">[] = [];
     for (const name of data.users) {
       const id = existingUsers.find((u) => u.name === name)?._id ?? (await ctx.db.insert("users", { name }));
       userIds.push(id);
-      await ctx.db.insert("collections", { userId: id, name: "Saved", roomIds: [], productIds: [] });
+      const collections = await ctx.db
+        .query("collections")
+        .withIndex("by_user", (q) => q.eq("userId", id))
+        .collect();
+      if (!collections.some((c) => c.name === "Saved")) {
+        await ctx.db.insert("collections", { userId: id, name: "Saved", roomIds: [], productIds: [] });
+      }
     }
-    for (const u of existingUsers) if (!userIds.includes(u._id)) await ctx.db.delete(u._id);
 
     const existingSellers = await ctx.db.query("sellers").collect();
     const sellerIds = new Map<string, Id<"sellers">>();
@@ -71,10 +70,7 @@ export const run = internalMutation({
       if (existing) await ctx.db.patch(existing._id, fields);
       sellerIds.set(s.key, existing?._id ?? (await ctx.db.insert("sellers", fields)));
     }
-    const keptSellers = [...sellerIds.values()];
-    for (const s of existingSellers) if (!keptSellers.includes(s._id)) await ctx.db.delete(s._id);
 
-    const existingProducts = await ctx.db.query("products").collect();
     const products: Doc<"products">[] = [];
     for (const p of data.products) {
       const fields = {
@@ -85,29 +81,32 @@ export const run = internalMutation({
         priceCents: p.priceCents,
         dimensions: { width: p.size[0], depth: p.size[1], height: p.size[2] },
         vendorUrl: `https://example.com/p/${p.slug}`,
-        modelUrl: undefined,
-        thumbnailUrl: undefined,
-        instructionsUrl: undefined,
-        designId: undefined,
-        checkoutUrl: undefined,
       };
-      const existing = existingProducts.find((e) => e.slug === p.slug);
+      const existing = await ctx.db
+        .query("products")
+        .withIndex("by_slug", (q) => q.eq("slug", p.slug))
+        .unique();
       if (existing) await ctx.db.patch(existing._id, fields);
       const id = existing?._id ?? (await ctx.db.insert("products", fields));
       products.push((await ctx.db.get(id))!);
     }
-    for (const p of existingProducts) if (!products.some((k) => k._id === p._id)) await ctx.db.delete(p._id);
 
     const template = roomTemplate(scan);
+    const slugs = new Set(data.rooms.map((r) => r.slug));
+    for (const room of await ctx.db.query("rooms").collect()) {
+      if (room.slug && !slugs.has(room.slug)) await ctx.db.delete(room._id);
+    }
     for (const [i, r] of data.rooms.entries()) {
-      await ctx.db.insert("rooms", {
+      const fields = {
         slug: r.slug,
         ownerId: userIds[r.ownerIndex],
         title: r.title,
         published: true,
         shell: template.shell,
         placements: template.placements.map(({ scannedSize, ...p }) => {
-          const ranked = rankByFit(products, p.category, scannedSize);
+          const ranked = rankByFit(products, p.category, scannedSize).filter(
+            (product) => p.category !== "other" || !scannedSize || sizeDistance(product.dimensions, scannedSize) <= 0.5,
+          );
           const product = ranked[i % Math.max(ranked.length, 1)];
           return {
             ...p,
@@ -115,7 +114,13 @@ export const run = internalMutation({
             ...(product ? { productId: product._id as string } : {}),
           };
         }),
-      });
+      };
+      const existing = await ctx.db
+        .query("rooms")
+        .withIndex("by_slug", (q) => q.eq("slug", r.slug))
+        .unique();
+      if (!existing) await ctx.db.insert("rooms", fields);
+      else if (replaceRooms) await ctx.db.patch(existing._id, fields);
     }
 
     return {
@@ -126,6 +131,20 @@ export const run = internalMutation({
       rooms: data.rooms.length,
       placementsPerRoom: template.placements.length,
     };
+  },
+});
+
+// Task Z full reset: deletes every row and stored file, including what the app created. Follow it
+// with seed:run and seed/upload.mjs in the same command (npm run demo:reset -- --full).
+export const wipeAll = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const tables = ["orders", "collections", "rooms", "designs", "products", "sellers", "users"] as const;
+    for (const table of tables) {
+      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
+    }
+    for (const file of await ctx.db.system.query("_storage").collect()) await ctx.storage.delete(file._id);
+    return null;
   },
 });
 
@@ -152,9 +171,9 @@ export const attachFile = internalMutation({
 
 // Removes what the demo reset's smoke checks created.
 export const deleteSmoke = internalMutation({
-  args: { orderId: v.id("orders"), designId: v.id("designs") },
+  args: { orderId: v.optional(v.id("orders")), designId: v.id("designs") },
   handler: async (ctx, { orderId, designId }) => {
-    await ctx.db.delete(orderId);
+    if (orderId) await ctx.db.delete(orderId);
     await ctx.db.delete(designId);
     return null;
   },

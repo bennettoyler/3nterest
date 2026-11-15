@@ -64,7 +64,7 @@ async function resolveProducts(ctx: MutationCtx, placements: Infer<typeof placem
         rankByFit(
           await ctx.db
             .query("products")
-            .filter((q) => q.eq(q.field("category"), rest.category))
+            .filter((q) => q.and(q.eq(q.field("category"), rest.category), q.eq(q.field("designId"), undefined)))
             .collect(),
           rest.category,
           rest.scannedSize,

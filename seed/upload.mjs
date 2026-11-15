@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(fileURLToPath(import.meta.url));
 const folders = {
-  models: { field: "modelUrl", type: "model/vnd.usdz+zip" },
-  thumbs: { field: "thumbnailUrl", type: "image/jpeg" },
-  instructions: { field: "instructionsUrl", type: "application/pdf" },
+  models: { field: "modelUrl", type: "model/vnd.usdz+zip", ext: ".usdz" },
+  thumbs: { field: "thumbnailUrl", type: "image/jpeg", ext: ".jpg" },
+  instructions: { field: "instructionsUrl", type: "application/pdf", ext: ".pdf" },
 };
 
 function convexRun(fn, args) {
@@ -22,15 +22,15 @@ function convexRun(fn, args) {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
   });
-  return JSON.parse(out.trim());
+  return out.trim() ? JSON.parse(out.trim()) : null;
 }
 
 let patched = 0;
-for (const [folder, { field, type }] of Object.entries(folders)) {
+for (const [folder, { field, type, ext }] of Object.entries(folders)) {
   const dir = join(root, folder);
   if (!existsSync(dir)) continue;
   for (const file of readdirSync(dir)) {
-    if (file.startsWith(".")) continue;
+    if (file.startsWith(".") || extname(file) !== ext) continue;
     const name = basename(file, extname(file));
     const isRoom = name.startsWith("room-");
     const uploadUrl = convexRun("files:generateUploadUrl", {});
