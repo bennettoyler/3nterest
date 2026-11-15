@@ -16,6 +16,7 @@ import type * as lib_designSchema from "../lib/designSchema.js";
 import type * as lib_match from "../lib/match.js";
 import type * as lib_shape from "../lib/shape.js";
 import type * as lib_split from "../lib/split.js";
+import type * as lib_verifyPayment from "../lib/verifyPayment.js";
 import type * as orders from "../orders.js";
 import type * as payments from "../payments.js";
 import type * as products from "../products.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   "lib/match": typeof lib_match;
   "lib/shape": typeof lib_shape;
   "lib/split": typeof lib_split;
+  "lib/verifyPayment": typeof lib_verifyPayment;
   orders: typeof orders;
   payments: typeof payments;
   products: typeof products;

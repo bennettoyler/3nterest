@@ -1,7 +1,9 @@
-import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+import { action, internalMutation, internalQuery, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { split } from "./lib/split";
 import { toOrder } from "./lib/shape";
+import { verifyPayment } from "./lib/verifyPayment";
 
 export const createPending = internalMutation({
   args: { productId: v.id("products"), buyerId: v.id("users") },
@@ -29,13 +31,60 @@ export const createPending = internalMutation({
   },
 });
 
-export const confirm = mutation({
+// Records the Whop checkout configuration createCheckout made for this order, so confirm can look up
+// its payment exactly. Only fills fields the order does not have yet.
+export const attachCheckout = internalMutation({
+  args: { id: v.id("orders"), whopCheckoutId: v.string(), whopVariantId: v.optional(v.string()), whopAccountId: v.string() },
+  handler: async (ctx, { id, ...fields }) => {
+    const order = await ctx.db.get(id);
+    if (!order || order.whopCheckoutId) return;
+    await ctx.db.patch(id, fields);
+  },
+});
+
+export const get = internalQuery({
   args: { id: v.id("orders") },
-  handler: async (ctx, { id }) => {
+  handler: async (ctx, { id }) => await ctx.db.get(id),
+});
+
+export const markPaid = internalMutation({
+  args: { id: v.id("orders"), whopPaymentId: v.optional(v.string()) },
+  handler: async (ctx, { id, whopPaymentId }) => {
     const order = await ctx.db.get(id);
     if (!order) throw new Error(`Order ${id} not found`);
-    if (order.status !== "paid") await ctx.db.patch(id, { status: "paid" });
-    return toOrder({ ...order, status: "paid" });
+    if (order.status === "paid") return toOrder(order);
+    const patch = { status: "paid" as const, ...(whopPaymentId ? { whopPaymentId } : {}) };
+    await ctx.db.patch(id, patch);
+    return toOrder({ ...order, ...patch });
+  },
+});
+
+// The app's "I've paid" button. An order from the real Whop path is marked paid only when Whop lists a
+// paid payment for its checkout configuration; otherwise it stays pending and this throws a ConvexError
+// containing PAYMENT_NOT_FOUND (ConvexError, because production redacts plain error messages). Orders
+// that used the fallback link, a missing WHOP_API_KEY, or a Whop that does not answer within 4 s are
+// marked paid as before, with a warning in the logs, so the demo never dead-ends.
+export const confirm = action({
+  args: { id: v.id("orders") },
+  handler: async (ctx, { id }): Promise<ReturnType<typeof toOrder>> => {
+    const order = await ctx.runQuery(internal.orders.get, { id });
+    if (!order) throw new Error(`Order ${id} not found`);
+    if (order.status === "paid") return toOrder(order);
+    const verdict = await verifyPayment(
+      { ...order, orderId: id, createdAtMs: order._creationTime },
+      { apiKey: process.env.WHOP_API_KEY, apiBase: process.env.WHOP_API_BASE },
+    );
+    if (verdict.result === "not_found") {
+      console.log(`Order ${id}: no paid Whop payment for ${order.whopCheckoutId}, left pending`);
+      throw new ConvexError(`PAYMENT_NOT_FOUND: no successful Whop payment for order ${id} yet`);
+    }
+    if (verdict.result === "unverified") {
+      console.warn(`Order ${id}: payment not verified (${verdict.reason}${verdict.detail ? `: ${verdict.detail}` : ""}), marked paid`);
+    }
+    return await ctx.runMutation(internal.orders.markPaid, {
+      id,
+      whopPaymentId: verdict.result === "paid" ? verdict.paymentId : undefined,
+    });
   },
 });
 

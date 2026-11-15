@@ -127,7 +127,7 @@ final class ConvexBackend: Backend, @unchecked Sendable {
   }
 
   func confirmOrder(id: String) async throws -> Order {
-    let order: OrderDTO = try await mutation("orders:confirm", ["id": id])
+    let order: OrderDTO = try await action("orders:confirm", ["id": id])
     return order.order
   }
 
