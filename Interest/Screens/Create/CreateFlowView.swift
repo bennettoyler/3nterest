@@ -71,6 +71,11 @@ struct CreateFlowView: View {
     }
     .navigationTitle("Create")
     .navigationBarTitleDisplayMode(.inline)
+    .task(id: room.placements.compactMap(\.designId)) {
+      let missing = room.placements.compactMap(\.designId).filter { id in !designs.contains { $0.id == id } }
+      guard !missing.isEmpty, let loaded = try? await backend.designs(ids: missing) else { return }
+      designs.append(contentsOf: loaded.filter { design in !designs.contains { $0.id == design.id } })
+    }
     .task(id: request) {
       guard let request else { return }
       switch request {
@@ -131,6 +136,7 @@ struct CreateFlowView: View {
 
   private var editor: some View {
     RoomEditorView(room: $room, products: products, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
+      .id(designs.map(\.id))
   }
 
   private var start: some View {
