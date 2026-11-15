@@ -54,7 +54,7 @@ check(
 );
 
 const started = Date.now();
-// Must match SMOKE_PROMPT in convex/seed.ts, which is how seed:deleteSmoke recognises the design.
+// Starts with SMOKE_PREFIX in convex/seed.ts, which is how seed:deleteSmoke recognises the design.
 const design = run("designs:generate", { prompt: "smoke check: a 120 cm walnut desk with two drawers", userId: users[0].id });
 const ms = Date.now() - started;
 check("builder", design.parts.length > 0 && ms < 15000, `"${design.title}", ${design.parts.length} parts in ${ms} ms`);
