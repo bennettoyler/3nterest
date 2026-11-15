@@ -4,7 +4,9 @@ type Category = Doc<"products">["category"];
 
 export const users = ["Maya Chen", "Jonas Weber", "Priya Nair", "Sam Okafor"];
 
-// whopAccountId: sub-accounts under the Whop sandbox platform account biz_vCOXH8enY1QolG.
+// whopAccountId: sub-accounts under the Whop sandbox platform account biz_vCOXH8enY1QolG. They exist only in
+// the sandbox, so the deployment must set WHOP_API_BASE=https://sandbox-api.whop.com/api/v1 (payments.ts
+// defaults to production).
 export const sellers: { key: string; name: string; kind: string; userIndex?: number; whopAccountId: string }[] = [
   { key: "nordhem", name: "Nordhem", kind: "brand", whopAccountId: "biz_YkK9KvOSUDDpqa" },
   { key: "parcel", name: "Parcel Home", kind: "brand", whopAccountId: "biz_MndMZtFHBUnYAD" },
