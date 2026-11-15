@@ -1,7 +1,13 @@
 import SwiftUI
 import UIKit
 
+enum CreateRequest: Equatable {
+  case place(Design)
+  case edit(Room)
+}
+
 struct CreateFlowView: View {
+  @Binding var request: CreateRequest?
   let backend: any Backend
   let products: [Product]
   let currentUser: User
@@ -11,6 +17,7 @@ struct CreateFlowView: View {
   @State private var room = Room(
     id: "", ownerId: "", ownerName: "", title: "", thumbnailUrl: nil, published: false,
     shell: RoomShell(walls: [], doors: [], windows: []), placements: [], remixedFromId: nil)
+  @State private var designs: [Design] = []
   @State private var editing = false
   @State private var selection: String?
   @State private var sheet: Sheet?
@@ -63,6 +70,26 @@ struct CreateFlowView: View {
     }
     .navigationTitle("Create")
     .navigationBarTitleDisplayMode(.inline)
+    .task(id: request) {
+      guard let request else { return }
+      switch request {
+      case .edit(let copy):
+        room = copy
+        selection = nil
+      case .place(let design):
+        if !editing {
+          room = (try? await backend.rooms(ownerId: currentUser.id).first) ?? sampleDraft()
+        }
+        let placement = Placement(
+          id: UUID().uuidString, transform: Self.roomCentreTransform(),
+          productId: nil, designId: design.id, category: .other, scannedSize: nil)
+        designs.append(design)
+        room.placements.append(placement)
+        selection = placement.id
+      }
+      editing = true
+      self.request = nil
+    }
     .sheet(item: $sheet) { sheet in
       switch sheet {
       case .info(let product):
@@ -98,9 +125,9 @@ struct CreateFlowView: View {
   }
 
   // TODO(A3): swap this seam for Dev 1's editor once dev1-3d is merged:
-  // RoomEditorView(room: $room, products: products, designs: [], selection: $selection, onSnapshot: { snapshot = $0 })
+  // RoomEditorView(room: $room, products: products, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
   private var editor: some View {
-    PlaceholderRoomEditor(room: $room, products: products, selection: $selection)
+    PlaceholderRoomEditor(room: $room, products: products, designs: designs, selection: $selection)
   }
 
   // TODO(A4): swap the sample-room button for Dev 1's scanner once dev1-3d is merged:
@@ -113,15 +140,7 @@ struct CreateFlowView: View {
         .multilineTextAlignment(.center)
         .foregroundStyle(.secondary)
       Button {
-        var draft = StubBackend.sampleRoom()
-        draft.id = ""
-        draft.ownerId = currentUser.id
-        draft.ownerName = currentUser.name
-        draft.title = "My room"
-        draft.published = false
-        draft.thumbnailUrl = nil
-        draft.remixedFromId = nil
-        room = draft
+        room = sampleDraft()
         selection = nil
         editing = true
       } label: {
@@ -132,6 +151,18 @@ struct CreateFlowView: View {
     }
     .padding(24)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  private func sampleDraft() -> Room {
+    var draft = StubBackend.sampleRoom()
+    draft.id = ""
+    draft.ownerId = currentUser.id
+    draft.ownerName = currentUser.name
+    draft.title = "My room"
+    draft.published = false
+    draft.thumbnailUrl = nil
+    draft.remixedFromId = nil
+    return draft
   }
 
   private var editorToolbar: some View {
@@ -224,6 +255,7 @@ struct CreateFlowView: View {
 private struct PlaceholderRoomEditor: View {
   @Binding var room: Room
   let products: [Product]
+  let designs: [Design]
   @Binding var selection: String?
 
   var body: some View {
@@ -241,9 +273,10 @@ private struct PlaceholderRoomEditor: View {
                   .clipShape(RoundedRectangle(cornerRadius: 8))
               }
               VStack(alignment: .leading, spacing: 2) {
-                Text(product?.name ?? "Scanned \(placement.category.rawValue)")
+                let design = designs.first { $0.id == placement.designId }
+                Text(product?.name ?? design?.title ?? "Scanned \(placement.category.rawValue)")
                   .font(.subheadline.weight(.semibold))
-                Text(product.map { "\($0.sellerName) · \($0.priceText)" } ?? "No matching product")
+                Text(product.map { "\($0.sellerName) · \($0.priceText)" } ?? (design == nil ? "No matching product" : "Your design"))
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -273,7 +306,7 @@ private struct CreateFlowPreview: View {
   var body: some View {
     NavigationStack {
       if let user {
-        CreateFlowView(backend: backend, products: products, currentUser: user, checkout: CheckoutFlow(backend: backend), onPublished: {})
+        CreateFlowView(request: .constant(nil), backend: backend, products: products, currentUser: user, checkout: CheckoutFlow(backend: backend), onPublished: {})
       } else {
         ProgressView()
       }

@@ -34,6 +34,7 @@ struct RoomCard: View {
         .lineLimit(1)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+    .contentShape(Rectangle())
   }
 
   private var placeholder: some View {

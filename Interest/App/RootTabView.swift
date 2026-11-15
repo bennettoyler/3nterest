@@ -5,6 +5,8 @@ struct RootTabView: View {
   @Environment(CheckoutFlow.self) private var checkout: CheckoutFlow?
   @State private var tab = AppTab.home
   @State private var homePath = NavigationPath()
+  @State private var createRequest: CreateRequest?
+  @State private var showingEarnings = false
 
   private enum AppTab {
     case home, create, builder, profile
@@ -23,7 +25,11 @@ struct RootTabView: View {
                 currentUser: session.currentUser,
                 checkout: checkout,
                 onRemix: {
-                  // TODO(B5): call backend.remix and open the copy in the editor.
+                  Task {
+                    guard let copy = try? await session.backend.remix(roomId: room.id, as: session.currentUser.id) else { return }
+                    createRequest = .edit(copy)
+                    tab = .create
+                  }
                 })
             }
         }
@@ -32,6 +38,7 @@ struct RootTabView: View {
 
         NavigationStack {
           CreateFlowView(
+            request: $createRequest,
             backend: session.backend,
             products: session.products,
             currentUser: session.currentUser,
@@ -45,13 +52,22 @@ struct RootTabView: View {
         .tag(AppTab.create)
 
         NavigationStack {
-          placeholder("Builder", systemImage: "hammer.fill")
+          BuilderChatView(
+            backend: session.backend,
+            currentUser: session.currentUser,
+            onPlace: { design in
+              createRequest = .place(design)
+              tab = .create
+            })
         }
         .tabItem { Label("Builder", systemImage: "hammer.fill") }
         .tag(AppTab.builder)
 
         NavigationStack {
-          placeholder("Profile", systemImage: "person.fill")
+          ProfileView(onShowEarnings: { showingEarnings = true })
+            .navigationDestination(isPresented: $showingEarnings) {
+              EarningsView(backend: session.backend, products: session.products)
+            }
         }
         .tabItem { Label("Profile", systemImage: "person.fill") }
         .tag(AppTab.profile)
@@ -67,10 +83,5 @@ struct RootTabView: View {
       .frame(maxWidth: .infinity, maxHeight: .infinity)
       .background(Theme.white)
     }
-  }
-
-  private func placeholder(_ title: String, systemImage: String) -> some View {
-    ContentUnavailableView(title, systemImage: systemImage, description: Text("Coming soon"))
-      .navigationTitle(title)
   }
 }
