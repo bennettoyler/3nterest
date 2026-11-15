@@ -2,11 +2,17 @@ import SwiftUI
 
 struct RootTabView: View {
   @Environment(Session.self) private var session
+  @State private var tab = AppTab.home
+  @State private var homePath = NavigationPath()
+
+  private enum AppTab {
+    case home, create, builder, profile
+  }
 
   var body: some View {
     if session.isStarted {
-      TabView {
-        NavigationStack {
+      TabView(selection: $tab) {
+        NavigationStack(path: $homePath) {
           FeedView(backend: session.backend)
             .navigationDestination(for: Room.self) { room in
               RoomDetailView(
@@ -23,21 +29,35 @@ struct RootTabView: View {
             }
         }
         .tabItem { Label("Home", systemImage: "house.fill") }
+        .tag(AppTab.home)
 
         NavigationStack {
-          placeholder("Create", systemImage: "plus.circle.fill")
+          CreateFlowView(
+            backend: session.backend,
+            products: session.products,
+            currentUser: session.currentUser,
+            onBuy: { _ in
+              // TODO(B4): present CheckoutView for the product.
+            },
+            onPublished: {
+              homePath = NavigationPath()
+              tab = .home
+            })
         }
         .tabItem { Label("Create", systemImage: "plus.circle.fill") }
+        .tag(AppTab.create)
 
         NavigationStack {
           placeholder("Builder", systemImage: "hammer.fill")
         }
         .tabItem { Label("Builder", systemImage: "hammer.fill") }
+        .tag(AppTab.builder)
 
         NavigationStack {
           placeholder("Profile", systemImage: "person.fill")
         }
         .tabItem { Label("Profile", systemImage: "person.fill") }
+        .tag(AppTab.profile)
       }
     } else {
       VStack(spacing: 16) {
