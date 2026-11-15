@@ -17,7 +17,7 @@ async function whopCheckout(order: {
   productName: string;
   amountCents: number;
   whopAccountId?: string;
-}): Promise<string | null> {
+}): Promise<{ url: string; checkoutId: string; variantId?: string; accountId: string } | null> {
   const apiKey = process.env.WHOP_API_KEY;
   const { platformFeeCents } = split(order.amountCents);
   if (!apiKey || !order.whopAccountId || platformFeeCents <= 0) return null;
@@ -49,7 +49,9 @@ async function whopCheckout(order: {
       return null;
     }
     const body = await res.json();
-    return https(body?.purchase_url);
+    const url = https(body?.purchase_url);
+    if (!url || typeof body?.id !== "string") return null;
+    return { url, checkoutId: body.id, variantId: body.variant?.id, accountId: order.whopAccountId };
   } catch (error) {
     console.warn("Whop checkout failed, using fallback link:", String(error));
     return null;
@@ -62,8 +64,17 @@ export const createCheckout = action({
   args: { productId: v.id("products"), buyerId: v.id("users") },
   handler: async (ctx, { productId, buyerId }): Promise<{ orderId: string; checkoutUrl: string }> => {
     const order = await ctx.runMutation(internal.orders.createPending, { productId, buyerId });
+    const whop = await whopCheckout(order);
+    if (whop) {
+      await ctx.runMutation(internal.orders.attachCheckout, {
+        id: order.orderId,
+        whopCheckoutId: whop.checkoutId,
+        whopVariantId: whop.variantId,
+        whopAccountId: whop.accountId,
+      });
+    }
     const checkoutUrl =
-      (await whopCheckout(order)) ??
+      whop?.url ??
       https(order.productCheckoutUrl) ??
       https(process.env.WHOP_FALLBACK_CHECKOUT_URL) ??
       `https://example.com/checkout?order=${order.orderId}`;

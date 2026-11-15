@@ -114,5 +114,9 @@ export default defineSchema({
     platformFeeCents: v.number(),
     sellerCents: v.number(),
     status: v.union(v.literal("pending"), v.literal("paid")),
+    whopCheckoutId: v.optional(v.string()),
+    whopVariantId: v.optional(v.string()),
+    whopAccountId: v.optional(v.string()),
+    whopPaymentId: v.optional(v.string()),
   }).index("by_seller_status", ["sellerId", "status"]),
 });
