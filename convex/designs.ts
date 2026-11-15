@@ -13,7 +13,7 @@ Coordinates: centimetres, origin at the centre of the floor footprint, Y up, the
 positionCm is the centre of each part; sizeCm is [width, height, depth] for boxes and [diameter, height, diameter] for cylinders; rotationDeg is [x, y, z] in degrees.
 Use realistic lumber sizes and joinery. Give each part a material and a #RRGGBB colour.
 The cut list must be consistent with the parts (one row per distinct piece with its quantity), followed by the hardware list and numbered build steps without the numbers.
-Keep it compact so it returns quickly: at most 16 parts, at most 8 cut list rows, at most 8 hardware items, and at most 7 short build steps.`;
+Use at most 40 parts.`;
 
 const vec3 = { type: "array", items: { type: "number" } };
 const jsonSchema = {
@@ -76,7 +76,6 @@ async function askOpenAI(prompt: string): Promise<DesignBody | null> {
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt },
         ],
-        max_tokens: 2500,
         response_format: { type: "json_schema", json_schema: { name: "design", strict: true, schema: jsonSchema } },
       }),
     });
