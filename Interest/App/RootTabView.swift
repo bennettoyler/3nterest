@@ -8,6 +8,19 @@ struct RootTabView: View {
       TabView {
         NavigationStack {
           FeedView(backend: session.backend)
+            .navigationDestination(for: Room.self) { room in
+              RoomDetailView(
+                room: room,
+                products: session.products,
+                backend: session.backend,
+                currentUser: session.currentUser,
+                onBuy: { _ in
+                  // TODO(B4): present CheckoutView for the product.
+                },
+                onRemix: {
+                  // TODO(B5): call backend.remix and open the copy in the editor.
+                })
+            }
         }
         .tabItem { Label("Home", systemImage: "house.fill") }
 

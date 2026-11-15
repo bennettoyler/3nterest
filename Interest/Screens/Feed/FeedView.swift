@@ -41,10 +41,7 @@ struct FeedView: View {
   private func column(parity: Int) -> some View {
     LazyVStack(spacing: 16) {
       ForEach(Array(rooms.enumerated()).filter { $0.offset % 2 == parity }, id: \.element.id) { index, room in
-        NavigationLink {
-          Text(room.title)
-            .navigationTitle(room.title)
-        } label: {
+        NavigationLink(value: room) {
           RoomCard(room: room, thumbnailHeight: Self.thumbnailHeights[index % Self.thumbnailHeights.count])
         }
         .buttonStyle(.plain)
