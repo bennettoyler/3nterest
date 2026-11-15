@@ -5,37 +5,8 @@
   "placements": [
     {
       "category": "chair",
-      "id": "sample-chair-1",
-      "productId": "stub-dining-chair",
-      "scannedSize": {
-        "depth": 0.572,
-        "height": 1.069,
-        "width": 0.523
-      },
-      "transform": [
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        -3.5091,
-        0.0,
-        -1.4949,
-        1.0
-      ],
-      "designId": null
-    },
-    {
-      "category": "chair",
       "id": "sample-chair-2",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.536,
         "height": 0.944,
@@ -64,7 +35,7 @@
     {
       "category": "table",
       "id": "sample-table-3",
-      "productId": "stub-table",
+      "productId": "stub-flip-table",
       "scannedSize": {
         "depth": 1.199,
         "height": 0.817,
@@ -93,7 +64,7 @@
     {
       "category": "chair",
       "id": "sample-chair-4",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.563,
         "height": 0.822,
@@ -122,7 +93,7 @@
     {
       "category": "chair",
       "id": "sample-chair-5",
-      "productId": "stub-chair",
+      "productId": "stub-task-chair",
       "scannedSize": {
         "depth": 0.64,
         "height": 1.079,
@@ -151,7 +122,7 @@
     {
       "category": "chair",
       "id": "sample-chair-6",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.63,
         "height": 0.858,
@@ -180,7 +151,7 @@
     {
       "category": "chair",
       "id": "sample-chair-7",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.59,
         "height": 0.864,
@@ -209,7 +180,7 @@
     {
       "category": "chair",
       "id": "sample-chair-8",
-      "productId": "stub-chair",
+      "productId": "stub-task-chair",
       "scannedSize": {
         "depth": 0.701,
         "height": 1.106,
@@ -238,7 +209,7 @@
     {
       "category": "chair",
       "id": "sample-chair-9",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.57,
         "height": 0.841,
@@ -267,7 +238,7 @@
     {
       "category": "chair",
       "id": "sample-chair-10",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.632,
         "height": 0.84,
@@ -296,7 +267,7 @@
     {
       "category": "chair",
       "id": "sample-chair-11",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.599,
         "height": 0.859,
@@ -325,7 +296,7 @@
     {
       "category": "chair",
       "id": "sample-chair-12",
-      "productId": "stub-chair",
+      "productId": "stub-task-chair",
       "scannedSize": {
         "depth": 0.701,
         "height": 1.106,
@@ -354,7 +325,7 @@
     {
       "category": "chair",
       "id": "sample-chair-13",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.635,
         "height": 0.88,
@@ -383,7 +354,7 @@
     {
       "category": "chair",
       "id": "sample-chair-14",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.478,
         "height": 0.856,
@@ -412,7 +383,7 @@
     {
       "category": "chair",
       "id": "sample-chair-15",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.701,
         "height": 0.878,
@@ -441,7 +412,7 @@
     {
       "category": "storage",
       "id": "sample-storage-16",
-      "productId": "stub-storage",
+      "productId": "stub-cane-sideboard",
       "scannedSize": {
         "depth": 0.619,
         "height": 0.892,
@@ -470,7 +441,7 @@
     {
       "category": "chair",
       "id": "sample-chair-17",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.496,
         "height": 0.966,
@@ -499,7 +470,7 @@
     {
       "category": "chair",
       "id": "sample-chair-18",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.56,
         "height": 0.834,
@@ -528,7 +499,7 @@
     {
       "category": "chair",
       "id": "sample-chair-19",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.587,
         "height": 0.836,
@@ -557,7 +528,7 @@
     {
       "category": "chair",
       "id": "sample-chair-20",
-      "productId": "stub-dining-chair",
+      "productId": "stub-stacking-chair",
       "scannedSize": {
         "depth": 0.559,
         "height": 0.836,
@@ -584,38 +555,9 @@
       "designId": null
     },
     {
-      "category": "chair",
-      "id": "sample-chair-21",
-      "productId": "stub-dining-chair",
-      "scannedSize": {
-        "depth": 0.554,
-        "height": 1.028,
-        "width": 0.557
-      },
-      "transform": [
-        0.7643,
-        0.0,
-        -0.6449,
-        0.0,
-        0.0,
-        1.0,
-        0.0,
-        0.0,
-        0.6449,
-        0.0,
-        0.7643,
-        0.0,
-        -3.4105,
-        0.0,
-        -2.4127,
-        1.0
-      ],
-      "designId": null
-    },
-    {
       "category": "television",
       "id": "sample-television-22",
-      "productId": "stub-tv",
+      "productId": "stub-wall-tv",
       "scannedSize": {
         "depth": 0.152,
         "height": 0.991,

@@ -8,7 +8,7 @@ final class StubBackendTests: XCTestCase {
     XCTAssertEqual(room.shell.walls.count, 4)
     XCTAssertEqual(room.shell.doors.count, 1)
     XCTAssertEqual(room.shell.windows.count, 4)
-    XCTAssertEqual(room.placements.count, 22)
+    XCTAssertEqual(room.placements.count, 20)
     for surface in room.shell.walls + room.shell.doors + room.shell.windows {
       XCTAssertEqual(surface.transform.count, 16)
     }
@@ -47,7 +47,7 @@ final class StubBackendTests: XCTestCase {
   func testStubCatalogAndCheckoutSplit() async throws {
     let backend = StubBackend()
     let products = try await backend.products()
-    XCTAssertEqual(products.count, 8)
+    XCTAssertEqual(products.count, 13)
     XCTAssertEqual(Set(products.map(\.category)), Set(FurnitureCategory.allCases))
     let checkout = try await backend.createCheckout(productId: "stub-chair", buyerId: "stub-user-2")
     XCTAssertEqual(checkout.checkoutUrl.absoluteString, "https://example.com/checkout")

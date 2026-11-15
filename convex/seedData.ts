@@ -45,6 +45,11 @@ export const products: {
   { slug: "oak-step-stool", seller: "maya", name: "Oak Step Stool", category: "other", priceCents: 5900, size: [0.4, 0.35, 0.45], vendorUrl: "https://www.ikea.com/us/en/cat/step-stools-step-ladders-20611/" },
   { slug: "ceramic-floor-lamp", seller: "clayloft", name: "Ceramic Floor Lamp", category: "other", priceCents: 15900, size: [0.4, 0.4, 1.6], vendorUrl: "https://www.ikea.com/us/en/cat/floor-lamps-10731/" },
   { slug: "rattan-armchair", seller: "clayloft", name: "Rocking Armchair", previousName: "Rattan Armchair", category: "chair", priceCents: 22900, size: [0.75, 0.75, 0.8], vendorUrl: "https://www.ikea.com/us/en/search/?q=rocking%20chair" },
+  { slug: "vik-white-stacking-chair", seller: "nordhem", name: "Vik White Stacking Chair", category: "chair", priceCents: 4900, size: [0.48, 0.52, 0.85], vendorUrl: "https://www.ikea.com/us/en/search/?q=stacking%20chair" },
+  { slug: "aero-mesh-task-chair", seller: "parcel", name: "Aero Mesh Task Chair", category: "chair", priceCents: 32900, size: [0.62, 0.66, 1.1], vendorUrl: "https://www.ikea.com/us/en/cat/office-chairs-20652/" },
+  { slug: "flip-top-rolling-table", seller: "nordhem", name: "Flip-Top Rolling Table", category: "table", priceCents: 27900, size: [1.6, 0.8, 0.75], vendorUrl: "https://www.ikea.com/us/en/search/?q=conference%20table" },
+  { slug: "rattan-cane-sideboard", seller: "maya", name: "Rattan Cane Sideboard", category: "storage", priceCents: 54900, size: [1.6, 0.45, 0.85], vendorUrl: "https://www.ikea.com/us/en/cat/sideboards-buffets-sofa-tables-30454/" },
+  { slug: "lumen-75-wall-tv", seller: "parcel", name: "Lumen 75-inch Wall TV", category: "television", priceCents: 109900, size: [1.85, 0.08, 1.0], vendorUrl: "https://www.amazon.com/s?k=75+inch+tv" },
 ];
 
 // Published demo rooms, all built from one scan (seed/scans/*.json, else SampleRoom.json). Room i takes
