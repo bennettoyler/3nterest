@@ -39,12 +39,26 @@ actor ModelCache {
 
   /// Coloured box at product.dimensions, base at y = 0, centred in x/z.
   nonisolated static func fallbackBox(for product: Product) -> SCNNode {
-    boxNode(size: product.dimensions, color: CGColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1))
+    boxNode(size: product.dimensions, color: furnitureColor(for: product.category))
+  }
+
+  /// Calm neutral furniture colours; orange is reserved for selection.
+  nonisolated static func furnitureColor(for category: FurnitureCategory) -> CGColor {
+    func c(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> CGColor { CGColor(red: r, green: g, blue: b, alpha: 1) }
+    switch category {
+    case .sofa: return c(0.76, 0.70, 0.62)
+    case .table: return c(0.80, 0.68, 0.50)
+    case .chair: return c(0.60, 0.68, 0.58)
+    case .bed: return c(0.62, 0.69, 0.78)
+    case .storage: return c(0.55, 0.49, 0.44)
+    case .television: return c(0.22, 0.23, 0.26)
+    case .other: return c(0.66, 0.66, 0.68)
+    }
   }
 
   /// Container whose bounding box is exactly `size`, base at local y = 0.
   nonisolated static func boxNode(size: Dimensions, color: CGColor) -> SCNNode {
-    let box = SCNBox(width: CGFloat(size.width), height: CGFloat(size.height), length: CGFloat(size.depth), chamferRadius: 0)
+    let box = SCNBox(width: CGFloat(size.width), height: CGFloat(size.height), length: CGFloat(size.depth), chamferRadius: 0.02)
     let m = SCNMaterial()
     m.diffuse.contents = color
     box.materials = [m]

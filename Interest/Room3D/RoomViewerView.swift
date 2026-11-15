@@ -20,12 +20,12 @@ private struct RoomSCNView: UIViewRepresentable {
   let scene: SCNScene
 
   func makeUIView(context: Context) -> SCNView {
-    let v = SCNView()
+    let v = FramedSCNView()
     v.scene = scene
     v.allowsCameraControl = true
     v.autoenablesDefaultLighting = false
     v.antialiasingMode = .multisampling4X
-    v.backgroundColor = UIColor(red: 0.93, green: 0.93, blue: 0.94, alpha: 1)
+    v.backgroundColor = .white
     v.pointOfView = scene.rootNode.childNode(withName: "defaultCamera", recursively: false)
     return v
   }

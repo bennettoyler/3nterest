@@ -25,7 +25,7 @@ enum RoomSceneBuilder {
     }
     let plane = SCNPlane(width: CGFloat(fw), height: CGFloat(fd))
     let fm = SCNMaterial()
-    fm.diffuse.contents = CGColor(red: 0.84, green: 0.70, blue: 0.50, alpha: 1)
+    fm.diffuse.contents = CGColor(red: 0.78, green: 0.72, blue: 0.64, alpha: 1)
     fm.isDoubleSided = true
     plane.materials = [fm]
     let floor = SCNNode(geometry: plane)
@@ -62,6 +62,39 @@ enum RoomSceneBuilder {
     cam.name = "defaultCamera"
     root.addChildNode(cam)
     return scene
+  }
+
+  /// Moves "defaultCamera" back along its current look direction so the whole room (all geometry)
+  /// fits in a viewport of the given size, using the smaller of the horizontal/vertical FOVs.
+  /// Call once at setup / first layout; it does not touch the user's orbit afterwards.
+  static func frameCamera(in scene: SCNScene, viewportSize: CGSize) {
+    guard viewportSize.width > 1, viewportSize.height > 1,
+          let cam = scene.rootNode.childNode(withName: "defaultCamera", recursively: false),
+          let camera = cam.camera else { return }
+    var lo = SIMD3<Float>(repeating: .greatestFiniteMagnitude)
+    var hi = SIMD3<Float>(repeating: -.greatestFiniteMagnitude)
+    scene.rootNode.enumerateHierarchy { node, _ in
+      guard node.geometry != nil else { return }
+      let (a, b) = node.boundingBox
+      for x in [a.x, b.x] { for y in [a.y, b.y] { for z in [a.z, b.z] {
+        let w = node.convertPosition(SCNVector3(x, y, z), to: nil)
+        lo = simd_min(lo, SIMD3<Float>(Float(w.x), Float(w.y), Float(w.z)))
+        hi = simd_max(hi, SIMD3<Float>(Float(w.x), Float(w.y), Float(w.z)))
+      } } }
+    }
+    guard lo.x <= hi.x else { return }
+    let centre = (lo + hi) / 2
+    let radius = simd_length(hi - lo) / 2
+    let aspect = Float(viewportSize.width / viewportSize.height)
+    camera.projectionDirection = .vertical
+    let vHalf = Float(camera.fieldOfView) * .pi / 360
+    let hHalf = atan(tan(vHalf) * aspect)
+    let distance = radius / sin(min(vHalf, hHalf)) * 1.04
+    let f = cam.simdWorldFront   // camera looks along its -Z; worldFront is that direction
+    let pos = centre - simd_normalize(f) * distance
+    cam.simdPosition = pos
+    cam.simdLook(at: centre)
+    camera.zFar = Double(max(200, distance + radius * 2))
   }
 
   /// Container node: name = placement.id, transform = placement.transform, base at y = 0.
@@ -109,5 +142,16 @@ enum RoomSceneBuilder {
       child.position = SCNVector3(0, 0, dot < 0 ? -offset : offset)
     }
     return holder
+  }
+}
+
+/// SCNView that frames the default camera once, on first layout with a real size.
+final class FramedSCNView: SCNView {
+  private var framed = false
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    guard !framed, bounds.width > 1, bounds.height > 1, let scene else { return }
+    framed = true
+    RoomSceneBuilder.frameCamera(in: scene, viewportSize: bounds.size)
   }
 }

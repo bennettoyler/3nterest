@@ -39,7 +39,7 @@ private struct EditorSceneView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> SCNView {
-        let view = SCNView()
+        let view = FramedSCNView()
         let c = context.coordinator
         view.scene = RoomSceneBuilder.scene(for: room, products: products, designs: designs)
         view.allowsCameraControl = true
