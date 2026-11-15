@@ -22,6 +22,7 @@ struct CreateFlowView: View {
   @State private var selection: String?
   @State private var sheet: Sheet?
   @State private var buying: Product?
+  @State private var snapshot: (() -> Data?)?
 
   private enum Sheet: Identifiable {
     case info(Product)
@@ -124,33 +125,16 @@ struct CreateFlowView: View {
     }
   }
 
-  // TODO(A3): swap this seam for Dev 1's editor once dev1-3d is merged:
-  // RoomEditorView(room: $room, products: products, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
   private var editor: some View {
-    PlaceholderRoomEditor(room: $room, products: products, designs: designs, selection: $selection)
+    RoomEditorView(room: $room, products: products, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
   }
 
-  // TODO(A4): swap the sample-room button for Dev 1's scanner once dev1-3d is merged:
-  // RoomScanView(products: products, owner: currentUser, onFinish: { room = $0; editing = true })
   private var start: some View {
-    VStack(spacing: 16) {
-      PinLogo(size: 72)
-      Text("Create a room").font(.title2.bold())
-      Text("Scan your room, then move, swap and add pieces before you publish it.")
-        .multilineTextAlignment(.center)
-        .foregroundStyle(.secondary)
-      Button {
-        room = sampleDraft()
-        selection = nil
-        editing = true
-      } label: {
-        Label("Start from sample room", systemImage: "cube.transparent").frame(maxWidth: .infinity)
-      }
-      .buttonStyle(.borderedProminent)
-      .controlSize(.large)
-    }
-    .padding(24)
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    RoomScanView(products: products, owner: currentUser, onFinish: { scanned in
+      room = scanned
+      selection = nil
+      editing = true
+    })
   }
 
   private func sampleDraft() -> Room {
@@ -219,21 +203,16 @@ struct CreateFlowView: View {
     let id = try await backend.saveRoom(draft)
     room.id = id
     room.title = title
-    // TODO(A3): take the JPEG from RoomEditorView's onSnapshot instead of the placeholder.
-    try await backend.publish(roomId: id, title: title, thumbnailJPEG: Self.placeholderThumbnailJPEG())
+    let jpeg = snapshot?() ?? Self.placeholderThumbnailJPEG()
+    try await backend.publish(roomId: id, title: title, thumbnailJPEG: jpeg)
     sheet = nil
     selection = nil
     editing = false
     onPublished()
   }
 
-  // TODO(A3): replace with Dev 1's transformArray(position: .zero, yawRadians: 0) once dev1-3d is merged.
-  // Column-major identity: no rotation, translation (0, 0, 0), which is the room centre on the floor.
   private static func roomCentreTransform() -> [Float] {
-    [1, 0, 0, 0,
-     0, 1, 0, 0,
-     0, 0, 1, 0,
-     0, 0, 0, 1]
+    transformArray(position: .zero, yawRadians: 0)
   }
 
   private static func placeholderThumbnailJPEG() -> Data {
@@ -246,54 +225,6 @@ struct CreateFlowView: View {
       context.fill(CGRect(origin: .zero, size: size))
       UIColor.white.setFill()
       context.fill(CGRect(x: 40, y: 40, width: size.width - 80, height: size.height - 80))
-    }
-  }
-}
-
-// PLACEHOLDER: stands in for Dev 1's RoomEditorView (A3). It lists the placements and lets one be selected,
-// so Info, Swap, Delete and Add all work on the Room value. It cannot move or rotate anything.
-private struct PlaceholderRoomEditor: View {
-  @Binding var room: Room
-  let products: [Product]
-  let designs: [Design]
-  @Binding var selection: String?
-
-  var body: some View {
-    List {
-      Section {
-        ForEach(room.placements) { placement in
-          let product = products.first { $0.id == placement.productId }
-          Button {
-            selection = selection == placement.id ? nil : placement.id
-          } label: {
-            HStack(spacing: 12) {
-              if let product {
-                ProductThumbnail(product: product)
-                  .frame(width: 44, height: 44)
-                  .clipShape(RoundedRectangle(cornerRadius: 8))
-              }
-              VStack(alignment: .leading, spacing: 2) {
-                let design = designs.first { $0.id == placement.designId }
-                Text(product?.name ?? design?.title ?? "Scanned \(placement.category.rawValue)")
-                  .font(.subheadline.weight(.semibold))
-                Text(product.map { "\($0.sellerName) · \($0.priceText)" } ?? (design == nil ? "No matching product" : "Your design"))
-                  .font(.caption)
-                  .foregroundStyle(.secondary)
-              }
-              Spacer()
-              if selection == placement.id {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
-              }
-            }
-            .contentShape(Rectangle())
-          }
-          .buttonStyle(.plain)
-        }
-      } header: {
-        Text("Placeholder editor")
-      } footer: {
-        Text("The 3D editor replaces this list. Tap a piece to select it.")
-      }
     }
   }
 }

@@ -155,7 +155,9 @@ private struct BuilderDesignCard: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      BuilderPreviewPlaceholder(design: design)
+      DesignPreviewView(design: design)
+        .frame(height: 200)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
       Text(design.title)
         .font(.headline)
       Button(action: onShowCutList) {
@@ -227,28 +229,6 @@ private struct BuilderDesignCard: View {
         listingFailed = true
       }
     }
-  }
-}
-
-private struct BuilderPreviewPlaceholder: View {
-  let design: Design
-
-  var body: some View {
-    RoundedRectangle(cornerRadius: 12)
-      .fill(Theme.orange.opacity(0.08))
-      .strokeBorder(Theme.orange.opacity(0.6), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
-      .frame(height: 200)
-      .overlay {
-        VStack(spacing: 6) {
-          Image(systemName: "rotate.3d")
-            .font(.largeTitle)
-          Text("3D preview placeholder")
-            .font(.subheadline.weight(.semibold))
-          Text("DesignPreviewView (A5) goes here · \(design.parts.count) parts")
-            .font(.caption)
-        }
-        .foregroundStyle(Theme.orange)
-      }
   }
 }
 
