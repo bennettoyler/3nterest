@@ -17,3 +17,15 @@ struct PinLogo: View {
       .accessibilityLabel("3nterest")
   }
 }
+
+struct Wordmark: View {
+  var size: CGFloat = 22
+
+  var body: some View {
+    Text("3nterest")
+      .font(.system(size: size, weight: .bold))
+      .foregroundStyle(Theme.orange)
+      .fixedSize()
+      .accessibilityLabel("3nterest")
+  }
+}

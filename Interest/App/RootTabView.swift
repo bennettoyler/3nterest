@@ -74,10 +74,7 @@ struct RootTabView: View {
       }
     } else {
       VStack(spacing: 16) {
-        PinLogo(size: 72)
-        Text("3nterest")
-          .font(.largeTitle.bold())
-          .foregroundStyle(Theme.orange)
+        Wordmark(size: 44)
         ProgressView()
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
