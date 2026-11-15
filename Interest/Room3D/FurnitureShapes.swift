@@ -20,6 +20,16 @@ enum FurnitureShapes {
       container.addChildNode(n)
     }
 
+    /// Box centred at (cx, cy, cz) with the given size, rotated about Y by `yaw`.
+    func boxYaw(cx: Float, cy: Float, cz: Float, sx: Float, sy: Float, sz: Float, yaw: Float, _ color: CGColor) {
+      let g = SCNBox(width: CGFloat(sx), height: CGFloat(sy), length: CGFloat(sz), chamferRadius: 0)
+      g.materials = [Self.material(color)]
+      let n = SCNNode(geometry: g)
+      n.position = SCNVector3(cx, cy, cz)
+      n.eulerAngles.y = yaw
+      container.addChildNode(n)
+    }
+
     func cylinder(x: Float, z: Float, y0: Float, y1: Float, radius: Float, _ color: CGColor) {
       let g = SCNCylinder(radius: CGFloat(radius), height: CGFloat(max(y1 - y0, 0.001)))
       g.radialSegmentCount = 16
@@ -184,5 +194,163 @@ enum FurnitureShapes {
     let m = cl(w * 0.04, 0.0, w * 0.2)
     b.box(-w * 0.1, w * 0.1, consoleH, consoleH + neckH + 0.002, panelZ0, panelZ0 + panelT, darker(c, 0.8)) // neck
     b.box(-hx + m, hx - m, consoleH + neckH, h, panelZ0, panelZ0 + panelT, screen)  // screen panel
+  }
+
+  /// A wall-mounted flat-panel TV: thin black panel `size.width` x `size.height`, depth `size.depth` clamped to
+  /// 0.03...0.1, with a dark-grey bezel and a slightly lighter screen face on local +Z. Bottom edge at y = 0, centred in x/z.
+  nonisolated static func wallTelevision(size: Dimensions) -> SCNNode {
+    let depth = cl(size.depth, 0.03, 0.1)
+    let b = Builder(w: size.width, h: size.height, d: depth)
+    let hx = size.width / 2, h = size.height, hz = depth / 2
+    let bezel = cl(min(size.width, h) * 0.03, 0.008, 0.03)
+    let f = hz - 0.005
+    let black = CGColor(red: 0.04, green: 0.04, blue: 0.045, alpha: 1)
+    let grey = CGColor(red: 0.16, green: 0.16, blue: 0.17, alpha: 1)
+    let screen = CGColor(red: 0.09, green: 0.09, blue: 0.11, alpha: 1)
+    b.box(-hx, hx, 0, h, -hz, f, black)                                                    // panel
+    b.box(-hx, hx, h - bezel, h, f, hz, grey)                                              // bezel
+    b.box(-hx, hx, 0, bezel, f, hz, grey)
+    b.box(-hx, -hx + bezel, bezel, h - bezel, f, hz, grey)
+    b.box(hx - bezel, hx, bezel, h - bezel, f, hz, grey)
+    b.box(-hx + bezel, hx - bezel, bezel, h - bezel, f, hz, screen)                        // screen face
+    return b.container
+  }
+
+  /// Purpose-built shapes for specific catalogue products (matched by name); nil for everything else.
+  nonisolated static func node(for product: Product) -> SCNNode? {
+    node(named: product.name, size: product.dimensions)
+  }
+
+  /// Shape for a sample-room product id the current catalogue does not know (a backend seeded before these products existed).
+  nonisolated static func node(forUnmatchedProductId id: String, size: Dimensions) -> SCNNode? {
+    let names = [
+      "stub-stacking-chair": "stacking chair", "stub-task-chair": "task chair", "stub-flip-table": "rolling table",
+      "stub-cane-sideboard": "cane sideboard", "stub-wall-tv": "wall tv",
+    ]
+    return names[id].flatMap { node(named: $0, size: size) }
+  }
+
+  private nonisolated static func node(named rawName: String, size: Dimensions) -> SCNNode? {
+    let name = rawName.lowercased()
+    let b = Builder(w: size.width, h: size.height, d: size.depth)
+    if name.contains("stacking chair") { stackingChair(b) }
+    else if name.contains("task chair") { taskChair(b) }
+    else if name.contains("rolling table") { rollingTable(b) }
+    else if name.contains("cane sideboard") { caneSideboard(b) }
+    else if name.contains("wall tv") { return wallTelevision(size: size) }
+    else { return nil }
+    return b.container
+  }
+
+  private nonisolated static func stackingChair(_ b: Builder) {
+    let w = b.w, h = b.h, d = b.d
+    let hx = w / 2, hz = d / 2
+    let white = CGColor(red: 0.957, green: 0.957, blue: 0.949, alpha: 1)
+    let leg = darker(white, 0.93)
+    let seatY = h * 0.53, st = cl(h * 0.035, 0.015, 0.04)
+    let lt = cl(min(w, d) * 0.07, 0.015, 0.03)
+    b.box(-hx, hx, seatY - st, seatY, -hz + lt * 0.5, hz, white)                 // seat
+    for sx: Float in [-1, 1] { for sz: Float in [-1, 1] {                        // four slim legs
+      let x0 = sx < 0 ? -hx : hx - lt, z0 = sz < 0 ? -hz : hz - lt
+      b.box(x0, x0 + lt, 0, seatY - st, z0, z0 + lt, leg)
+    } }
+    for sx: Float in [-1, 1] {                                                   // back posts
+      let x0 = sx < 0 ? -hx : hx - lt
+      b.box(x0, x0 + lt, seatY - st, h, -hz, -hz + lt, white)
+    }
+    let slatH = cl((h - seatY) * 0.22, 0.03, 0.08)
+    b.box(-hx, hx, h - slatH, h, -hz, -hz + lt, white)                           // upper slat
+    let lowY = seatY + (h - seatY) * 0.28
+    b.box(-hx, hx, lowY, lowY + slatH, -hz, -hz + lt, white)                     // lower slat
+  }
+
+  private nonisolated static func taskChair(_ b: Builder) {
+    let w = b.w, h = b.h, d = b.d
+    let hx = w / 2, hz = d / 2
+    let black = CGColor(red: 0.137, green: 0.141, blue: 0.153, alpha: 1)
+    let mesh = CGColor(red: 0.26, green: 0.27, blue: 0.29, alpha: 1)
+    let casterH: Float = 0.04
+    let baseR = min(w, d) * 0.46
+    let seatY = h * 0.45, st = cl(h * 0.08, 0.04, 0.09)
+    let seatW = w * 0.80, seatHz = hz
+    // star base
+    for i in 0..<5 {
+      let a = Float(i) * 2 * .pi / 5 + 0.3
+      let mx = sin(a) * baseR / 2, mz = cos(a) * baseR / 2
+      b.boxYaw(cx: mx, cy: casterH + 0.015, cz: mz, sx: 0.04, sy: 0.03, sz: baseR, yaw: a, black)
+      let tipX = sin(a) * baseR, tipZ = cos(a) * baseR
+      b.cylinder(x: tipX, z: tipZ, y0: 0, y1: casterH, radius: 0.022, CGColor(red: 0.05, green: 0.05, blue: 0.06, alpha: 1))
+    }
+    b.cylinder(x: 0, z: 0, y0: casterH, y1: seatY - st, radius: 0.025, CGColor(red: 0.45, green: 0.46, blue: 0.48, alpha: 1)) // gas lift
+    b.box(-seatW / 2, seatW / 2, seatY - st, seatY, -hz * 0.75, seatHz, black)   // seat
+    // armrests reach the full width
+    let armY = seatY + h * 0.17
+    for sx: Float in [-1, 1] {
+      let x0 = sx < 0 ? -hx : hx - 0.04
+      b.box(x0, x0 + 0.04, armY, armY + 0.03, -hz * 0.3, hz * 0.45, black)       // arm pad
+      b.box(sx < 0 ? -hx + 0.005 : hx - 0.035, sx < 0 ? -hx + 0.035 : hx - 0.005, seatY, armY, hz * 0.05, hz * 0.15, black)
+    }
+    // back: frame + lighter semi-transparent mesh panel, with the top reaching h and rear reaching -hz
+    let backB = seatY + 0.06
+    b.box(-seatW / 2, seatW / 2, backB, h, -hz, -hz + 0.04, black)
+    let panel = SCNBox(width: CGFloat(seatW - 0.08), height: CGFloat(h - backB - 0.08), length: 0.01, chamferRadius: 0)
+    let m = SCNMaterial()
+    m.diffuse.contents = mesh
+    m.transparency = 0.7
+    panel.materials = [m]
+    let pn = SCNNode(geometry: panel)
+    pn.position = SCNVector3(0, (backB + h) / 2, -hz + 0.045)
+    b.container.addChildNode(pn)
+  }
+
+  private nonisolated static func rollingTable(_ b: Builder) {
+    let w = b.w, h = b.h, d = b.d
+    let hx = w / 2, hz = d / 2
+    let white = CGColor(red: 0.961, green: 0.961, blue: 0.953, alpha: 1)
+    let frame = darker(white, 0.95)
+    let dark = CGColor(red: 0.1, green: 0.1, blue: 0.11, alpha: 1)
+    let tt: Float = 0.03
+    let casterH: Float = 0.06
+    b.box(-hx, hx, h - tt, h, -hz, hz, white)                                    // top
+    let legX = hx * 0.72, bar: Float = 0.05
+    let footH0 = casterH, footH1 = casterH + 0.04
+    let footZ = hz - 0.04
+    for sx: Float in [-1, 1] {
+      let cx = sx * legX
+      b.box(cx - bar / 2, cx + bar / 2, footH0, footH1, -footZ, footZ, frame)    // foot bar (T-leg base)
+      b.box(cx - bar / 2, cx + bar / 2, footH1, h - tt, -0.025, 0.025, frame)    // post
+      for sz: Float in [-1, 1] {
+        b.cylinder(x: cx, z: sz * (footZ - 0.02), y0: 0, y1: casterH, radius: 0.025, dark) // caster
+      }
+    }
+    b.box(-legX, legX, h - tt - 0.08, h - tt, -0.02, 0.02, frame)                // stretcher under the top
+  }
+
+  private nonisolated static func caneSideboard(_ b: Builder) {
+    let w = b.w, h = b.h, d = b.d
+    let hx = w / 2, hz = d / 2
+    let walnut = CGColor(red: 0.42, green: 0.29, blue: 0.184, alpha: 1)
+    let cane = CGColor(red: 0.847, green: 0.769, blue: 0.604, alpha: 1)
+    let knob = CGColor(red: 0.12, green: 0.1, blue: 0.09, alpha: 1)
+    let legH = cl(h * 0.14, 0.05, 0.14), lt: Float = 0.04
+    let fr: Float = 0.018                                                        // front slab depth
+    for sx: Float in [-1, 1] { for sz: Float in [-1, 1] {
+      let x0 = sx < 0 ? -hx + 0.02 : hx - 0.02 - lt, z0 = sz < 0 ? -hz : hz - lt
+      b.box(x0, x0 + lt, 0, legH, z0, z0 + lt, walnut)
+    } }
+    b.box(-hx, hx, legH, h, -hz, hz - fr, walnut)                                // carcass
+    let n = 4
+    let gap: Float = 0.006, m: Float = 0.012
+    let dw = (w - 2 * m - gap * Float(n - 1)) / Float(n)
+    let y0 = legH + m, y1 = h - m
+    let rail = cl(dw * 0.1, 0.02, 0.04)
+    for i in 0..<n {
+      let x0 = -hx + m + Float(i) * (dw + gap)
+      b.box(x0, x0 + dw, y0, y1, hz - fr, hz - 0.004, walnut)                    // door frame slab
+      b.box(x0 + rail, x0 + dw - rail, y0 + rail, y1 - rail, hz - fr, hz - 0.002, cane) // cane insert
+      let kx = i % 2 == 0 ? x0 + dw - rail * 0.5 : x0 + rail * 0.5
+      let ky = (y0 + y1) / 2
+      b.box(kx - 0.008, kx + 0.008, ky - 0.02, ky + 0.02, hz - 0.01, hz, knob)   // knob
+    }
   }
 }

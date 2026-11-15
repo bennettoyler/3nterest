@@ -61,12 +61,13 @@ enum CapturedRoomConverter {
                        productId: ProductMatcher.match(category: category, size: size, in: products)?.id,
                        designId: nil, category: category, scannedSize: size)
     }
-    return Room(id: "", ownerId: ownerId, ownerName: ownerName, title: "My room",
+    let room = Room(id: "", ownerId: ownerId, ownerName: ownerName, title: "My room",
                 thumbnailUrl: nil, published: false,
                 shell: RoomShell(walls: captured.walls.map(surface),
                                  doors: captured.doors.map(surface),
                                  windows: captured.windows.map(surface)),
                 placements: placements, remixedFromId: nil)
+    return RoomNormalizer.normalized(room)
   }
 
   static func map(_ c: CapturedRoom.Object.Category) -> FurnitureCategory {

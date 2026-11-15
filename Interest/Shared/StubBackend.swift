@@ -46,6 +46,11 @@ final class StubBackend: Backend, @unchecked Sendable {
       product("stub-storage", parcel, "Stack Bookcase", .storage, 9900, 0.8, 0.3, 1.8),
       product("stub-stool", maya, "Oak Step Stool", .other, 5900, 0.4, 0.35, 0.45),
       product("stub-dining-chair", maya, "Walnut Dining Chair", .chair, 14900, 0.45, 0.5, 0.9),
+      product("stub-stacking-chair", nordhem, "Vik White Stacking Chair", .chair, 4900, 0.48, 0.52, 0.85),
+      product("stub-task-chair", parcel, "Aero Mesh Task Chair", .chair, 32900, 0.62, 0.66, 1.1),
+      product("stub-flip-table", nordhem, "Flip-Top Rolling Table", .table, 27900, 1.6, 0.8, 0.75),
+      product("stub-cane-sideboard", maya, "Rattan Cane Sideboard", .storage, 54900, 1.6, 0.45, 0.85),
+      product("stub-wall-tv", parcel, "Lumen 75-inch Wall TV", .television, 109900, 1.85, 0.08, 1.0),
     ]
 
     let sample = StubBackend.sampleRoom()

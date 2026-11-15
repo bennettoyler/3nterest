@@ -48,6 +48,11 @@ const stubProductSlugs: Record<string, string> = {
   "stub-storage": "stack-bookcase",
   "stub-stool": "oak-step-stool",
   "stub-dining-chair": "walnut-dining-chair",
+  "stub-stacking-chair": "vik-white-stacking-chair",
+  "stub-task-chair": "aero-mesh-task-chair",
+  "stub-flip-table": "flip-top-rolling-table",
+  "stub-cane-sideboard": "rattan-cane-sideboard",
+  "stub-wall-tv": "lumen-75-wall-tv",
 };
 
 // A productId that is not a Convex product id is mapped to the seeded product it stands for, else to

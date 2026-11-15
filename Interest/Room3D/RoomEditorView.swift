@@ -341,7 +341,7 @@ private struct EditorSceneView: UIViewRepresentable {
                 let yawNow = yaw(of: current)
                 let target = hit + grabOffset
                 let bounds = RoomBounds(shell: parent.room.shell)
-                let p = bounds.clamp(SIMD3<Float>(target.x, 0, target.y), halfExtent: halfExtent(of: node, yaw: yawNow))
+                let p = bounds.clamp(SIMD3<Float>(target.x, current[13], target.y), halfExtent: halfExtent(of: node, yaw: yawNow))
                 let t = transformArray(position: p, yawRadians: yawNow)
                 node.transform = t.scnMatrix
                 parent.room.placements[i].transform = t
@@ -361,7 +361,7 @@ private struct EditorSceneView: UIViewRepresentable {
                 let newYaw = yaw(of: t0) - Float(g.rotation)
                 g.rotation = 0
                 let bounds = RoomBounds(shell: parent.room.shell)
-                let pos = SIMD3<Float>(t0[12], 0, t0[14])
+                let pos = SIMD3<Float>(t0[12], t0[13], t0[14])
                 let p = bounds.clamp(pos, halfExtent: halfExtent(of: node, yaw: newYaw))
                 let t = transformArray(position: p, yawRadians: newYaw)
                 node.transform = t.scnMatrix

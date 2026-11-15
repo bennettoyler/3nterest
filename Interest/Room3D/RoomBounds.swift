@@ -26,11 +26,12 @@ struct RoomBounds {
         minX = lo.x; minZ = lo.y; maxX = hi.x; maxZ = hi.y
     }
 
-    /// Keeps an object with the given half extent (x, z) inside the walls; result is on the floor (y = 0).
+    /// Keeps an object with the given half extent (x, z) inside the walls; result keeps the incoming y when it is above 0.3 (wall-mounted items), otherwise it is on the floor (y = 0).
     func clamp(_ p: SIMD3<Float>, halfExtent: SIMD2<Float>) -> SIMD3<Float> {
-        guard hasWalls else { return SIMD3<Float>(p.x, 0, p.z) }
+        let y: Float = p.y > 0.3 ? p.y : 0
+        guard hasWalls else { return SIMD3<Float>(p.x, y, p.z) }
         return SIMD3<Float>(Self.clamp1(p.x, minX + halfExtent.x, maxX - halfExtent.x),
-                            0,
+                            y,
                             Self.clamp1(p.z, minZ + halfExtent.y, maxZ - halfExtent.y))
     }
 

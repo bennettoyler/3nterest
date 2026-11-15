@@ -23,4 +23,24 @@ final class FurnitureShapesTests: XCTestCase {
       }
     }
   }
+
+  func testProductSpecificShapesFillDimensions() {
+    let items: [(String, FurnitureCategory, Dimensions)] = [
+      ("Vik White Stacking Chair", .chair, .init(width: 0.48, depth: 0.52, height: 0.85)),
+      ("Aero Mesh Task Chair", .chair, .init(width: 0.62, depth: 0.66, height: 1.10)),
+      ("Flip-Top Rolling Table", .table, .init(width: 1.6, depth: 0.8, height: 0.75)),
+      ("Rattan Cane Sideboard", .storage, .init(width: 1.6, depth: 0.45, height: 0.85)),
+      ("Lumen 75-inch Wall TV", .television, .init(width: 1.85, depth: 0.08, height: 1.0)),
+    ]
+    for (name, cat, d) in items {
+      let product = Product.fixture(name: name, category: cat, dimensions: d)
+      guard let node = FurnitureShapes.node(for: product) else { XCTFail("nil for \(name)"); continue }
+      let (lo, hi) = node.boundingBox
+      XCTAssertEqual(hi.x - lo.x, d.width, accuracy: 0.02, name)
+      XCTAssertEqual(hi.y - lo.y, d.height, accuracy: 0.02, name)
+      XCTAssertEqual(hi.z - lo.z, d.depth, accuracy: 0.02, name)
+      XCTAssertEqual(lo.y, 0, accuracy: 0.02, name)
+    }
+    XCTAssertNil(FurnitureShapes.node(for: Product.fixture(name: "Walnut Dining Chair")))
+  }
 }
