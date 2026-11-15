@@ -11,6 +11,7 @@ const https = (url?: string | null) => (url && /^https:\/\/[^\s]+$/.test(url) ? 
 // Real path: a Whop checkout configuration charged directly on the seller's sub-account with the
 // 5% platform cut as application_fee_amount (docs.whop.com, "Collect Payments for Subaccounts").
 // Runs only when WHOP_API_KEY is set and the seller has a whopAccountId; any failure falls back.
+// No redirect_url: Whop accepts only https redirects, so the app confirms the order from its Done button.
 async function whopCheckout(order: {
   orderId: string;
   productName: string;
@@ -23,7 +24,7 @@ async function whopCheckout(order: {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    const res = await fetch(`${process.env.WHOP_API_BASE ?? "https://sandbox-api.whop.com/api/v1"}/checkout_configurations`, {
+    const res = await fetch(`${process.env.WHOP_API_BASE ?? "https://api.whop.com/api/v1"}/checkout_configurations`, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -33,7 +34,6 @@ async function whopCheckout(order: {
       },
       body: JSON.stringify({
         account_id: order.whopAccountId,
-        redirect_url: `interest://paid?order=${order.orderId}`,
         metadata: { orderId: order.orderId },
         variant: {
           title: order.productName,
