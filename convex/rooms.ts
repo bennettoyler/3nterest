@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import type { Infer } from "convex/values";
 import { placement, roomShell } from "./schema";
 import { toRoom } from "./lib/shape";
 
@@ -36,6 +37,38 @@ export const byOwner = query({
   },
 });
 
+// StubBackend product ids (saved by the app's sample-room draft) mapped to the seeded products of the same name.
+const stubProductSlugs: Record<string, string> = {
+  "stub-sofa": "linnea-3-seat-sofa",
+  "stub-table": "birk-coffee-table",
+  "stub-chair": "harbor-lounge-chair",
+  "stub-tv": "vista-55-tv",
+  "stub-bed": "fjell-queen-bed",
+  "stub-storage": "stack-bookcase",
+  "stub-stool": "oak-step-stool",
+  "stub-dining-chair": "walnut-dining-chair",
+};
+
+// A productId that is not a Convex product id is mapped to the seeded product it stands for, else to
+// any product of the placement's category, else dropped so the app draws a box.
+async function resolveProducts(ctx: MutationCtx, placements: Infer<typeof placement>[]) {
+  return await Promise.all(
+    placements.map(async ({ productId, ...rest }) => {
+      if (!productId) return rest;
+      const id = ctx.db.normalizeId("products", productId);
+      if (id && (await ctx.db.get(id))) return { ...rest, productId };
+      const slug = stubProductSlugs[productId];
+      const match =
+        (slug && (await ctx.db.query("products").withIndex("by_slug", (q) => q.eq("slug", slug)).unique())) ||
+        (await ctx.db
+          .query("products")
+          .filter((q) => q.eq(q.field("category"), rest.category))
+          .first());
+      return match ? { ...rest, productId: match._id as string } : rest;
+    }),
+  );
+}
+
 export const save = mutation({
   args: {
     room: v.object({
@@ -56,7 +89,7 @@ export const save = mutation({
       title: room.title,
       published: room.published,
       shell: room.shell,
-      placements: room.placements,
+      placements: await resolveProducts(ctx, room.placements),
       ...(room.thumbnailUrl ? { thumbnailUrl: room.thumbnailUrl } : {}),
     };
     const existing = room.id ? ctx.db.normalizeId("rooms", room.id) : null;
