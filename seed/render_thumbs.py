@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Renders seed/thumbs/*.jpg from seed/models/*.usdz and the seeded rooms (SampleRoom.json shell).
-# Needs: pip install usd-core pyrender pillow numpy; run with PYOPENGL_PLATFORM=egl.
+# Needs: pip install usd-core pyrender trimesh pillow 'numpy<2' 'scipy<1.14' PyOpenGL==3.1.7; run with PYOPENGL_PLATFORM=egl.
 import io, json, os, sys, zipfile
 import numpy as np
 np.infty = np.inf
