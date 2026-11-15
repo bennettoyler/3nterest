@@ -79,7 +79,11 @@ struct CreateFlowView: View {
         selection = nil
       case .place(let design):
         if !editing {
-          room = (try? await backend.rooms(ownerId: currentUser.id).first) ?? sampleDraft()
+          if let latest = try? await backend.rooms(ownerId: currentUser.id).first {
+            room = latest
+          } else {
+            room = await sampleDraft()
+          }
         }
         let placement = Placement(
           id: UUID().uuidString, transform: Self.roomCentreTransform(),
@@ -131,13 +135,28 @@ struct CreateFlowView: View {
 
   private var start: some View {
     RoomScanView(products: products, owner: currentUser, onFinish: { scanned in
-      room = scanned
-      selection = nil
-      editing = true
+      Task {
+        room = await withCatalogProducts(scanned)
+        selection = nil
+        editing = true
+      }
     })
   }
 
-  private func sampleDraft() -> Room {
+  // The bundled sample room names StubBackend product ids; point them at the live catalog by product name.
+  private func withCatalogProducts(_ room: Room) async -> Room {
+    var room = room
+    let stubProducts = (try? await StubBackend().products()) ?? []
+    for index in room.placements.indices {
+      guard let stub = stubProducts.first(where: { $0.id == room.placements[index].productId }),
+        let match = products.first(where: { $0.name == stub.name })
+      else { continue }
+      room.placements[index].productId = match.id
+    }
+    return room
+  }
+
+  private func sampleDraft() async -> Room {
     var draft = StubBackend.sampleRoom()
     draft.id = ""
     draft.ownerId = currentUser.id
@@ -146,7 +165,7 @@ struct CreateFlowView: View {
     draft.published = false
     draft.thumbnailUrl = nil
     draft.remixedFromId = nil
-    return draft
+    return await withCatalogProducts(draft)
   }
 
   private var editorToolbar: some View {

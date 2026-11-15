@@ -2,7 +2,10 @@ import SwiftUI
 
 @main
 struct InterestApp: App {
-  @State private var session = Session(primary: StubBackend(), fallback: StubBackend())
+  private static let useConvex = true
+  @State private var session = Session(
+    primary: useConvex ? ConvexBackend(deploymentUrl: "https://frugal-squirrel-172.convex.cloud") : StubBackend(),
+    fallback: StubBackend())
   @State private var checkoutFlow: CheckoutFlow?
 
   var body: some Scene {

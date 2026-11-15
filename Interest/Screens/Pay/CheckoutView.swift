@@ -51,7 +51,7 @@ struct CheckoutView: View {
           guard case .inCheckout(let orderId) = flow.state, let url = URL(string: "interest://paid?order=\(orderId)") else { return }
           Task { await flow.handleReturn(url: url) }
         } label: {
-          Text("Done").frame(maxWidth: .infinity)
+          Label("I've paid — Done", systemImage: "checkmark.circle.fill").frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
