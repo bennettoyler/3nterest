@@ -62,8 +62,8 @@ export const markPaid = internalMutation({
 // The app's "I've paid" button. An order from the real Whop path is marked paid only when Whop lists a
 // paid payment for its checkout configuration; otherwise it stays pending and this throws a ConvexError
 // containing PAYMENT_NOT_FOUND (ConvexError, because production redacts plain error messages). Orders
-// that used the fallback link, a missing WHOP_API_KEY, or a Whop that does not answer within 4 s are
-// marked paid as before, with a warning in the logs, so the demo never dead-ends.
+// that used the fallback link, a missing WHOP_API_KEY, or a Whop that does not answer within 4 s (or
+// answers 5xx/429) are marked paid as before, with a warning in the logs, so the demo never dead-ends.
 export const confirm = action({
   args: { id: v.id("orders") },
   handler: async (ctx, { id }): Promise<ReturnType<typeof toOrder>> => {
@@ -75,7 +75,7 @@ export const confirm = action({
       { apiKey: process.env.WHOP_API_KEY, apiBase: process.env.WHOP_API_BASE },
     );
     if (verdict.result === "not_found") {
-      console.log(`Order ${id}: no paid Whop payment for ${order.whopCheckoutId}, left pending`);
+      console.log(`Order ${id}: no paid Whop payment for ${order.whopCheckoutId}${verdict.detail ? ` (${verdict.detail})` : ""}, left pending`);
       throw new ConvexError(`PAYMENT_NOT_FOUND: no successful Whop payment for order ${id} yet`);
     }
     if (verdict.result === "unverified") {
