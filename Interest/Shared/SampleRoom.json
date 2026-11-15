@@ -1,0 +1,91 @@
+{
+  "id": "sample-room",
+  "ownerId": "stub-user-1",
+  "ownerName": "Maya Chen",
+  "title": "Sample Room",
+  "published": true,
+  "shell": {
+    "walls": [
+      {
+        "transform": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1.25, -2.5, 1],
+        "width": 4,
+        "height": 2.5
+      },
+      {
+        "transform": [0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0, 2, 1.25, 0, 1],
+        "width": 5,
+        "height": 2.5
+      },
+      {
+        "transform": [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 1.25, 2.5, 1],
+        "width": 4,
+        "height": 2.5
+      },
+      {
+        "transform": [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -2, 1.25, 0, 1],
+        "width": 5,
+        "height": 2.5
+      }
+    ],
+    "doors": [
+      {
+        "transform": [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 1.3, 1.05, 2.5, 1],
+        "width": 0.9,
+        "height": 2.1
+      }
+    ],
+    "windows": [
+      {
+        "transform": [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -2, 1.5, -0.5, 1],
+        "width": 1.4,
+        "height": 1.2
+      }
+    ]
+  },
+  "placements": [
+    {
+      "id": "placement-sofa",
+      "transform": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -2, 1],
+      "productId": "stub-sofa",
+      "category": "sofa",
+      "scannedSize": {
+        "width": 2,
+        "depth": 0.9,
+        "height": 0.8
+      }
+    },
+    {
+      "id": "placement-table",
+      "transform": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -0.7, 1],
+      "productId": "stub-table",
+      "category": "table",
+      "scannedSize": {
+        "width": 1.1,
+        "depth": 0.6,
+        "height": 0.45
+      }
+    },
+    {
+      "id": "placement-chair",
+      "transform": [0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, -1.3, 0, -0.4, 1],
+      "productId": "stub-chair",
+      "category": "chair",
+      "scannedSize": {
+        "width": 0.7,
+        "depth": 0.7,
+        "height": 0.85
+      }
+    },
+    {
+      "id": "placement-tv",
+      "transform": [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, 0, 2.25, 1],
+      "productId": "stub-tv",
+      "category": "television",
+      "scannedSize": {
+        "width": 1.4,
+        "depth": 0.4,
+        "height": 1.1
+      }
+    }
+  ]
+}
