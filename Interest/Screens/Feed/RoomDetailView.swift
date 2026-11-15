@@ -22,11 +22,8 @@ struct RoomDetailView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
-        ZStack {
-          Color(.systemGray4)
-          Label("3D room", systemImage: "cube").foregroundStyle(.secondary)
-        }
-        .frame(height: 300)
+        RoomViewerView(room: room, products: products, designs: [])
+          .frame(height: 300)
 
         VStack(alignment: .leading, spacing: 4) {
           Text(room.title).font(.title2.bold())
