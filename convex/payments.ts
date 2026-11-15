@@ -5,6 +5,9 @@ import { split } from "./lib/split";
 
 const TIMEOUT_MS = 8000;
 
+// The app opens checkoutUrl in SFSafariViewController, which crashes on anything but http(s).
+const https = (url?: string | null) => (url && /^https:\/\/[^\s]+$/.test(url) ? url : null);
+
 // Real path: a Whop checkout configuration charged directly on the seller's sub-account with the
 // 5% platform cut as application_fee_amount (docs.whop.com, "Collect Payments for Subaccounts").
 // Runs only when WHOP_API_KEY is set and the seller has a whopAccountId; any failure falls back.
@@ -46,7 +49,7 @@ async function whopCheckout(order: {
       return null;
     }
     const body = await res.json();
-    return typeof body?.purchase_url === "string" ? body.purchase_url : null;
+    return https(body?.purchase_url);
   } catch (error) {
     console.warn("Whop checkout failed, using fallback link:", String(error));
     return null;
@@ -61,8 +64,8 @@ export const createCheckout = action({
     const order = await ctx.runMutation(internal.orders.createPending, { productId, buyerId });
     const checkoutUrl =
       (await whopCheckout(order)) ??
-      order.productCheckoutUrl ??
-      process.env.WHOP_FALLBACK_CHECKOUT_URL ??
+      https(order.productCheckoutUrl) ??
+      https(process.env.WHOP_FALLBACK_CHECKOUT_URL) ??
       `https://example.com/checkout?order=${order.orderId}`;
     return { orderId: order.orderId, checkoutUrl };
   },

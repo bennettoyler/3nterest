@@ -15,13 +15,39 @@ final class ConvexBackend: Backend, @unchecked Sendable {
     try await query("users:list")
   }
 
+  // Never finishes: if no Convex value arrives within 5 s, or the subscription fails before
+  // delivering one, the bundled stub rooms are yielded; a failed subscription is retried.
   func feed() -> AsyncStream<[Room]> {
     AsyncStream { continuation in
-      let cancellable = client.subscribe(to: "rooms:feed", yielding: [Room].self)
-        .sink(
-          receiveCompletion: { _ in continuation.finish() },
-          receiveValue: { continuation.yield($0) })
-      continuation.onTermination = { _ in cancellable.cancel() }
+      let delivered = ManagedFlag()
+      let yieldStubOnce = {
+        guard delivered.setIfUnset() else { return }
+        for await rooms in StubBackend().feed() {
+          continuation.yield(rooms)
+          break
+        }
+      }
+      let watchdog = Task {
+        try await Task.sleep(for: .seconds(5))
+        await yieldStubOnce()
+      }
+      let subscription = Task {
+        while !Task.isCancelled {
+          do {
+            for try await rooms in self.client.subscribe(to: "rooms:feed", yielding: [Room].self).values {
+              _ = delivered.setIfUnset()
+              continuation.yield(rooms)
+            }
+          } catch {
+            await yieldStubOnce()
+          }
+          try? await Task.sleep(for: .seconds(3))
+        }
+      }
+      continuation.onTermination = { _ in
+        watchdog.cancel()
+        subscription.cancel()
+      }
     }
   }
 
@@ -69,9 +95,19 @@ final class ConvexBackend: Backend, @unchecked Sendable {
     let _: String? = try await mutation("collections:save", args)
   }
 
+  // The server answers within ~8 s with a canned design if OpenAI fails; this covers a dropped connection.
   func generateDesign(prompt: String, userId: String) async throws -> Design {
-    let design: DesignDTO = try await action("designs:generate", ["prompt": prompt, "userId": userId])
-    return design.design
+    do {
+      let design: DesignDTO = try await withTimeout(10) {
+        try await self.client.action("designs:generate", with: ["prompt": prompt, "userId": userId])
+      }
+      return design.design
+    } catch {
+      var design = StubBackend.cannedDesk
+      design.ownerId = userId
+      design.prompt = prompt
+      return design
+    }
   }
 
   func designs(ids: [String]) async throws -> [Design] {
@@ -122,21 +158,44 @@ final class ConvexBackend: Backend, @unchecked Sendable {
     try await withTimeout(15) { try await self.client.action(name, with: args) }
   }
 
+  // Races unstructured tasks: the ConvexMobile FFI call ignores cancellation, so a task group
+  // would wait for it and never time out.
   private func withTimeout<T: Sendable>(_ seconds: Double, _ work: @escaping @Sendable () async throws -> T) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-      group.addTask { try await work() }
-      group.addTask {
-        try await Task.sleep(for: .seconds(seconds))
-        throw BackendError.timedOut
+    let finished = ManagedFlag()
+    return try await withCheckedThrowingContinuation { continuation in
+      let call = Task {
+        do {
+          let value = try await work()
+          if finished.setIfUnset() { continuation.resume(returning: value) }
+        } catch {
+          if finished.setIfUnset() { continuation.resume(throwing: error) }
+        }
       }
-      defer { group.cancelAll() }
-      guard let result = try await group.next() else { throw BackendError.noResult }
-      return result
+      Task {
+        try? await Task.sleep(for: .seconds(seconds))
+        if finished.setIfUnset() {
+          call.cancel()
+          continuation.resume(throwing: BackendError.timedOut)
+        }
+      }
     }
   }
 }
 
 extension Room: ConvexEncodable {}
+
+private final class ManagedFlag: @unchecked Sendable {
+  private let lock = NSLock()
+  private var isSet = false
+
+  func setIfUnset() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    if isSet { return false }
+    isSet = true
+    return true
+  }
+}
 
 private struct StorageUpload: Decodable { var storageId: String }
 
