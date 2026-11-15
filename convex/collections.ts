@@ -17,7 +17,10 @@ const optionalId = v.optional(v.union(v.string(), v.null()));
 
 export const save = mutation({
   args: { roomId: optionalId, productId: optionalId, userId: v.id("users") },
-  handler: async (ctx, { roomId, productId, userId }) => {
+  handler: async (ctx, args) => {
+    const { userId } = args;
+    const roomId = args.roomId ? ctx.db.normalizeId("rooms", args.roomId) : null;
+    const productId = args.productId ? ctx.db.normalizeId("products", args.productId) : null;
     const saved = (
       await ctx.db
         .query("collections")

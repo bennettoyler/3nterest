@@ -10,8 +10,8 @@ export const feed = query({
     const rooms = await ctx.db
       .query("rooms")
       .withIndex("by_published", (q) => q.eq("published", true))
-      .order("desc")
       .collect();
+    rooms.sort((a, b) => (b.publishedAt ?? b._creationTime) - (a.publishedAt ?? a._creationTime));
     return await Promise.all(rooms.map((r) => toRoom(ctx, r)));
   },
 });
@@ -106,7 +106,7 @@ export const publish = mutation({
   args: { roomId: v.id("rooms"), title: v.string(), storageId: v.id("_storage") },
   handler: async (ctx, { roomId, title, storageId }) => {
     const thumbnailUrl = (await ctx.storage.getUrl(storageId)) ?? undefined;
-    await ctx.db.patch(roomId, { title, published: true, thumbnailUrl });
+    await ctx.db.patch(roomId, { title, published: true, publishedAt: Date.now(), thumbnailUrl });
     return null;
   },
 });
