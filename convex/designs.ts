@@ -120,10 +120,12 @@ export const byIds = query({
 });
 
 export const listForSale = mutation({
-  args: { designId: v.id("designs"), priceCents: v.number() },
-  handler: async (ctx, { designId, priceCents }) => {
-    const design = await ctx.db.get(designId);
-    if (!design) throw new Error(`Design ${designId} not found`);
+  args: { designId: v.string(), priceCents: v.number() },
+  handler: async (ctx, args) => {
+    const designId = ctx.db.normalizeId("designs", args.designId);
+    const design = designId ? await ctx.db.get(designId) : null;
+    if (!designId || !design) throw new Error(`Design ${args.designId} was never saved to Convex (offline fallback); generate it again to list it`);
+    const { priceCents } = args;
     const owner = await ctx.db.get(design.ownerId);
     const existing = await ctx.db
       .query("sellers")

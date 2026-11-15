@@ -21,11 +21,12 @@ final class ConvexBackend: Backend, @unchecked Sendable {
     AsyncStream { continuation in
       let delivered = ManagedFlag()
       let yieldStubOnce = {
-        guard delivered.setIfUnset() else { return }
+        var stubRooms: [Room] = []
         for await rooms in StubBackend().feed() {
-          continuation.yield(rooms)
+          stubRooms = rooms
           break
         }
+        if delivered.setIfUnset() { continuation.yield(stubRooms) }
       }
       let watchdog = Task {
         try await Task.sleep(for: .seconds(5))
