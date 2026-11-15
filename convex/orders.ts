@@ -63,7 +63,7 @@ export const markPaid = internalMutation({
 // paid payment for its checkout configuration; otherwise it stays pending and this throws a ConvexError
 // containing PAYMENT_NOT_FOUND (ConvexError, because production redacts plain error messages). Orders
 // that used the fallback link, a missing WHOP_API_KEY, or a Whop that does not answer within 4 s (or
-// answers 5xx/429) are marked paid as before, with a warning in the logs, so the demo never dead-ends.
+// answers 5xx) are marked paid as before, with a warning in the logs, so the demo never dead-ends.
 export const confirm = action({
   args: { id: v.id("orders") },
   handler: async (ctx, { id }): Promise<ReturnType<typeof toOrder>> => {

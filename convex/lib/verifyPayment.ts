@@ -2,9 +2,10 @@
 // checkout configuration (and the variant Whop created for it), so its payment can be looked up exactly:
 // paid only when Whop lists a payment for that checkout configuration with status "paid" that was not
 // refunded or lost in a dispute. Orders without one (fallback checkout link), a missing WHOP_API_KEY, or a
-// Whop that does not answer in time (network error, timeout, 5xx, 429) cannot be verified; the caller then
-// keeps the old behaviour and marks the order paid so the demo never dead-ends. Any other refusal (401, 403,
-// 4xx) is treated as no payment found, so a broken key never turns unpaid orders into paid ones.
+// Whop that does not answer in time (network error, timeout, 5xx) cannot be verified; the caller then keeps
+// the old behaviour and marks the order paid so the demo never dead-ends. Every other answer that is not a
+// readable list (any 4xx including 429, an unparsable body) is treated as no payment found, so neither a
+// broken key nor a buyer hammering confirm into a rate limit turns an unpaid order into a paid one.
 
 export type Verdict =
   | { result: "paid"; paymentId: string }
@@ -52,12 +53,16 @@ export async function verifyPayment(
     const res = await fetchFn(`${env.apiBase ?? "https://api.whop.com/api/v1"}/payments?${params}`, {
       signal: controller.signal,
       headers: { Authorization: `Bearer ${env.apiKey}` },
-    });
-    if (res.status >= 500 || res.status === 429) {
-      return { result: "unverified", reason: "whop_unreachable", detail: `HTTP ${res.status}` };
-    }
+    }).catch((error) => error as Error);
+    if (res instanceof Error) return { result: "unverified", reason: "whop_unreachable", detail: String(res) };
+    if (res.status >= 500) return { result: "unverified", reason: "whop_unreachable", detail: `HTTP ${res.status}` };
     if (!res.ok) return { result: "not_found", detail: `Whop refused the lookup: HTTP ${res.status}` };
-    const body = (await res.json()) as { data?: Payment[] };
+    const body = (await res.json().catch((error) => error as Error)) as { data?: Payment[] } | Error;
+    if (body instanceof Error) {
+      return controller.signal.aborted
+        ? { result: "unverified", reason: "whop_unreachable", detail: String(body) }
+        : { result: "not_found", detail: "Whop answered with an unreadable body" };
+    }
     const payment = (body.data ?? []).find(
       (p) =>
         p.status === "paid" &&
@@ -65,8 +70,6 @@ export async function verifyPayment(
         (p.checkout_configuration_id === order.whopCheckoutId || p.metadata?.orderId === order.orderId),
     );
     return payment?.id ? { result: "paid", paymentId: payment.id } : { result: "not_found" };
-  } catch (error) {
-    return { result: "unverified", reason: "whop_unreachable", detail: String(error) };
   } finally {
     clearTimeout(timer);
   }
