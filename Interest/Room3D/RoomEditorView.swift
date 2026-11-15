@@ -47,6 +47,7 @@ private struct EditorSceneView: UIViewRepresentable {
         view.backgroundColor = .white
         view.antialiasingMode = .multisampling4X
         c.scnView = view
+        view.delegate = c
 
         let tap = UITapGestureRecognizer(target: c, action: #selector(Coordinator.handleTap(_:)))
         tap.delegate = c
@@ -80,7 +81,7 @@ private struct EditorSceneView: UIViewRepresentable {
         c.refreshSelection(force: false)
     }
 
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate, SCNSceneRendererDelegate {
         var parent: EditorSceneView
         weak var scnView: SCNView?
         weak var panRecognizer: UIPanGestureRecognizer?
@@ -91,6 +92,20 @@ private struct EditorSceneView: UIViewRepresentable {
         private var shownSelectionId: String?
         private var overlay: SCNNode?
         private var grabOffset = SIMD2<Float>(0, 0)
+        private var tagNode: SCNNode?
+        private var tagTextHeight: CGFloat = 10
+        private var viewHeight: CGFloat = 800
+
+        /// Keep the price tag a constant on-screen size (about 15 pt tall) at any camera distance.
+        func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
+            guard let tag = tagNode, let pov = renderer.pointOfView else { return }
+            let a = tag.presentation.worldPosition, b = pov.presentation.worldPosition
+            let d = CGFloat(sqrt(pow(a.x - b.x, 2) + pow(a.y - b.y, 2) + pow(a.z - b.z, 2)))
+            let fov = CGFloat(pov.camera?.fieldOfView ?? 60) * .pi / 180
+            let pxPerUnit = viewHeight / (2 * tan(fov / 2) * max(d, 0.01))
+            let k = Float(15 / (pxPerUnit * tagTextHeight))
+            tag.scale = SCNVector3(k, k, k)
+        }
 
         init(_ parent: EditorSceneView) { self.parent = parent }
 
@@ -149,43 +164,70 @@ private struct EditorSceneView: UIViewRepresentable {
             if !force, id == shownSelectionId, let o = overlay, let id, o.parent === placementNode(id) { return }
             overlay?.removeFromParentNode()
             overlay = nil
+            tagNode = nil
             shownSelectionId = nil
-            guard let id, let node = placementNode(id) else { return }
+            if let h = scnView?.bounds.height, h > 0 { viewHeight = h }
+            scnView?.rendersContinuously = false
+            guard let id, let node = placementNode(id) else { scnView?.setNeedsDisplay(); return }
 
             let (lo, hi) = localBounds(of: node)
             let size = SCNVector3(hi.x - lo.x, hi.y - lo.y, hi.z - lo.z)
             let container = SCNNode()
             container.name = overlayName
 
-            let box = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y), length: CGFloat(size.z), chamferRadius: 0)
             let outline = SCNMaterial()
-            outline.fillMode = .lines
             outline.lightingModel = .constant
             outline.diffuse.contents = brandOrange
             let tint = SCNMaterial()
             tint.lightingModel = .constant
-            tint.diffuse.contents = brandOrange.withAlphaComponent(0.18)
+            tint.diffuse.contents = brandOrange.withAlphaComponent(0.25)
             tint.isDoubleSided = true
             tint.writesToDepthBuffer = false
             let fillBox = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y), length: CGFloat(size.z), chamferRadius: 0)
-            box.materials = [outline]
             fillBox.materials = [tint]
             let centre = SCNVector3((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, (lo.z + hi.z) / 2)
-            let boxNode = SCNNode(geometry: box)
-            boxNode.position = centre
             let fillNode = SCNNode(geometry: fillBox)
             fillNode.position = centre
-            container.addChildNode(boxNode)
             container.addChildNode(fillNode)
+
+            let t: CGFloat = 0.015
+            let sx = CGFloat(size.x), sy = CGFloat(size.y), sz = CGFloat(size.z)
+            for sy1: Float in [-1, 1] {
+                for sz1: Float in [-1, 1] {
+                    let bar = SCNNode(geometry: SCNBox(width: sx + t, height: t, length: t, chamferRadius: 0))
+                    bar.geometry?.materials = [outline]
+                    bar.position = SCNVector3(centre.x, centre.y + sy1 * Float(sy) / 2, centre.z + sz1 * Float(sz) / 2)
+                    container.addChildNode(bar)
+                }
+            }
+            for sx1: Float in [-1, 1] {
+                for sz1: Float in [-1, 1] {
+                    let bar = SCNNode(geometry: SCNBox(width: t, height: sy + t, length: t, chamferRadius: 0))
+                    bar.geometry?.materials = [outline]
+                    bar.position = SCNVector3(centre.x + sx1 * Float(sx) / 2, centre.y, centre.z + sz1 * Float(sz) / 2)
+                    container.addChildNode(bar)
+                }
+            }
+            for sx1: Float in [-1, 1] {
+                for sy1: Float in [-1, 1] {
+                    let bar = SCNNode(geometry: SCNBox(width: t, height: t, length: sz + t, chamferRadius: 0))
+                    bar.geometry?.materials = [outline]
+                    bar.position = SCNVector3(centre.x + sx1 * Float(sx) / 2, centre.y + sy1 * Float(sy) / 2, centre.z)
+                    container.addChildNode(bar)
+                }
+            }
 
             if let text = tagText(for: id) {
                 let tag = makeTag(text)
-                tag.position = SCNVector3((lo.x + hi.x) / 2, hi.y + 0.2, (lo.z + hi.z) / 2)
+                tag.position = SCNVector3((lo.x + hi.x) / 2, hi.y + 0.03, (lo.z + hi.z) / 2)
                 container.addChildNode(tag)
+                tagNode = tag
             }
             node.addChildNode(container)
             overlay = container
             shownSelectionId = id
+            scnView?.rendersContinuously = true
+            scnView?.setNeedsDisplay()
         }
 
         private func tagText(for id: String) -> String? {
@@ -210,12 +252,12 @@ private struct EditorSceneView: UIViewRepresentable {
             let textNode = SCNNode(geometry: text)
             let (tmin, tmax) = textNode.boundingBox
             textNode.pivot = SCNMatrix4MakeTranslation((tmin.x + tmax.x) / 2, (tmin.y + tmax.y) / 2, 0)
-            textNode.scale = SCNVector3(0.012, 0.012, 0.012)
-            textNode.position = SCNVector3(0, 0, 0.002)
+            textNode.position = SCNVector3(0, 0, 0.05)
             textNode.renderingOrder = 101
+            tagTextHeight = CGFloat(tmax.y - tmin.y)
 
-            let w = CGFloat(tmax.x - tmin.x) * 0.012 + 0.1
-            let h = CGFloat(tmax.y - tmin.y) * 0.012 + 0.06
+            let w = CGFloat(tmax.x - tmin.x) + 10
+            let h = tagTextHeight + 6
             let plane = SCNPlane(width: w, height: h)
             plane.cornerRadius = h / 2
             let bg = SCNMaterial()
@@ -226,9 +268,13 @@ private struct EditorSceneView: UIViewRepresentable {
             let bgNode = SCNNode(geometry: plane)
             bgNode.renderingOrder = 100
 
+            let holder = SCNNode()
+            holder.position = SCNVector3(0, Float(h / 2 + 2), 0)
+            holder.addChildNode(bgNode)
+            holder.addChildNode(textNode)
+
             let tag = SCNNode()
-            tag.addChildNode(bgNode)
-            tag.addChildNode(textNode)
+            tag.addChildNode(holder)
             tag.constraints = [SCNBillboardConstraint()]
             return tag
         }
