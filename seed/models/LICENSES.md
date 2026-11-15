@@ -12,7 +12,7 @@ All files were converted from glTF (Poly Haven, 1k textures) or OBJ (Kenney) to 
 | harbor-lounge-chair.usdz | Arm Chair 01 (`ArmChair_01`) | Kirill Sannikov | https://polyhaven.com/a/ArmChair_01 | — |
 | iron-cafe-chair.usdz | Painted Wooden Chair 01 (`painted_wooden_chair_01`) | Kuutti Siitonen | https://polyhaven.com/a/painted_wooden_chair_01 | — |
 | kallo-shelf-unit.usdz | Wooden Display Shelves 01 (`wooden_display_shelves_01`) | James Ray Cock | https://polyhaven.com/a/wooden_display_shelves_01 | rotated 90° about Y |
-| linnea-3-seat-sofa.usdz | Sofa 02 (`sofa_02`) | Kirill Sannikov | https://polyhaven.com/a/sofa_02 | rotated 180° about Y |
+| linnea-3-seat-sofa.usdz | Sofa 02 (`sofa_02`) | Kirill Sannikov | https://polyhaven.com/a/sofa_02 | — |
 | live-edge-dining-table.usdz | Wooden Table 02 (`wooden_table_02`) | Serhii Khromov | https://polyhaven.com/a/wooden_table_02 | — |
 | oak-step-stool.usdz | Wooden Stool 01 (`wooden_stool_01`) | Kuutti Siitonen | https://polyhaven.com/a/wooden_stool_01 | — |
 | rattan-armchair.usdz | Rockingchair 01 (`Rockingchair_01`) | Jorge Camacho | https://polyhaven.com/a/Rockingchair_01 | — |
