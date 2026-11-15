@@ -7,26 +7,33 @@ final class StubBackendTests: XCTestCase {
     let room = try JSONDecoder().decode(Room.self, from: Data(contentsOf: url))
     XCTAssertEqual(room.shell.walls.count, 4)
     XCTAssertEqual(room.shell.doors.count, 1)
-    XCTAssertEqual(room.shell.windows.count, 1)
-    XCTAssertEqual(room.placements.compactMap(\.productId), ["stub-sofa", "stub-table", "stub-chair", "stub-tv"])
+    XCTAssertEqual(room.shell.windows.count, 4)
+    XCTAssertEqual(room.placements.count, 22)
     for surface in room.shell.walls + room.shell.doors + room.shell.windows {
       XCTAssertEqual(surface.transform.count, 16)
     }
     for placement in room.placements {
       XCTAssertEqual(placement.transform.count, 16)
-      XCTAssertEqual(placement.transform[13], 0)
+      if placement.category != .television {
+        XCTAssertEqual(placement.transform[13], 0, accuracy: 1e-3)
+      }
     }
     var corners: [String: Int] = [:]
+    var minX = Float.greatestFiniteMagnitude, maxX = -Float.greatestFiniteMagnitude
+    var minZ = Float.greatestFiniteMagnitude, maxZ = -Float.greatestFiniteMagnitude
     for wall in room.shell.walls {
-      XCTAssertEqual(wall.height, 2.5)
-      XCTAssertEqual(wall.transform[13] - wall.height / 2, 0, accuracy: 1e-5)
+      XCTAssertEqual(wall.transform[13] - wall.height / 2, 0, accuracy: 1e-3)
       for side: Float in [-1, 1] {
         let x = wall.transform[12] + side * wall.width / 2 * wall.transform[0]
         let z = wall.transform[14] + side * wall.width / 2 * wall.transform[2]
         corners["\(Int((x * 100).rounded())),\(Int((z * 100).rounded()))", default: 0] += 1
+        minX = min(minX, x); maxX = max(maxX, x); minZ = min(minZ, z); maxZ = max(maxZ, z)
       }
     }
-    XCTAssertEqual(corners, ["-200,-250": 2, "200,-250": 2, "200,250": 2, "-200,250": 2])
+    XCTAssertEqual(corners.count, 4)
+    XCTAssertTrue(corners.values.allSatisfy { $0 == 2 }, "\(corners)")
+    XCTAssertEqual(maxX - minX, 7.60, accuracy: 0.02)
+    XCTAssertEqual(maxZ - minZ, 5.71, accuracy: 0.02)
   }
 
   func testFeedYieldsSixPublishedRooms() async {

@@ -6,12 +6,19 @@ enum RoomSceneBuilder {
     let scene = SCNScene()
     let root = scene.rootNode
 
-    // Floor, sized to the walls' extent
-    let xs = room.shell.walls.map { $0.transform.count == 16 ? $0.transform[12] : 0 }
-    let zs = room.shell.walls.map { $0.transform.count == 16 ? $0.transform[14] : 0 }
-    let minX = xs.min() ?? -2, maxX = xs.max() ?? 2, minZ = zs.min() ?? -2, maxZ = zs.max() ?? 2
-    let fw = max(maxX - minX, 1), fd = max(maxZ - minZ, 1)
-    let cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2
+    // Floor follows the walls: convex hull of all wall END points
+    let ends = wallEndPoints(room)
+    var hull = convexHull(ends)
+    let fw: Float, fd: Float, cx: Float, cz: Float
+    if hull.count >= 3 {
+      let minX = ends.map(\.x).min()!, maxX = ends.map(\.x).max()!
+      let minZ = ends.map(\.y).min()!, maxZ = ends.map(\.y).max()!
+      fw = max(maxX - minX, 1); fd = max(maxZ - minZ, 1)
+      cx = (minX + maxX) / 2; cz = (minZ + maxZ) / 2
+    } else {
+      fw = 4; fd = 4; cx = 0; cz = 0
+      hull = [SIMD2(-2, -2), SIMD2(2, -2), SIMD2(2, 2), SIMD2(-2, 2)]
+    }
 
     // Surfaces: single-sided planes facing the room centre (dollhouse view)
     for w in room.shell.walls {
@@ -23,15 +30,8 @@ enum RoomSceneBuilder {
     for w in room.shell.windows {
       root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.58, blue: 0.70, alpha: 1)))
     }
-    let plane = SCNPlane(width: CGFloat(fw), height: CGFloat(fd))
-    let fm = SCNMaterial()
-    fm.diffuse.contents = CGColor(red: 0.78, green: 0.72, blue: 0.64, alpha: 1)
-    fm.isDoubleSided = true
-    plane.materials = [fm]
-    let floor = SCNNode(geometry: plane)
+    let floor = SCNNode(geometry: floorGeometry(hull))
     floor.name = "floor"
-    floor.eulerAngles = SCNVector3(-Float.pi / 2, 0, 0)
-    floor.position = SCNVector3(cx, 0, cz)
     root.addChildNode(floor)
 
     // Placements
@@ -62,6 +62,58 @@ enum RoomSceneBuilder {
     cam.name = "defaultCamera"
     root.addChildNode(cam)
     return scene
+  }
+
+  /// Both end points of every wall in x/z: centre +/- width/2 along the wall's local X axis.
+  static func wallEndPoints(_ room: Room) -> [SIMD2<Float>] {
+    var out: [SIMD2<Float>] = []
+    for w in room.shell.walls where w.transform.count == 16 {
+      let t = w.transform
+      let c = SIMD2<Float>(t[12], t[14])
+      let a = SIMD2<Float>(t[0], t[2]) * (w.width / 2)
+      out.append(c - a); out.append(c + a)
+    }
+    return out
+  }
+
+  /// Andrew's monotone chain; no repeated first point.
+  static func convexHull(_ pts: [SIMD2<Float>]) -> [SIMD2<Float>] {
+    let p = pts.sorted { $0.x != $1.x ? $0.x < $1.x : $0.y < $1.y }
+    guard p.count >= 3 else { return p }
+    func cross(_ o: SIMD2<Float>, _ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Float {
+      (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x)
+    }
+    var lower: [SIMD2<Float>] = []
+    for q in p {
+      while lower.count >= 2 && cross(lower[lower.count - 2], lower[lower.count - 1], q) <= 1e-6 { lower.removeLast() }
+      lower.append(q)
+    }
+    var upper: [SIMD2<Float>] = []
+    for q in p.reversed() {
+      while upper.count >= 2 && cross(upper[upper.count - 2], upper[upper.count - 1], q) <= 1e-6 { upper.removeLast() }
+      upper.append(q)
+    }
+    lower.removeLast(); upper.removeLast()
+    return lower + upper
+  }
+
+  /// Flat triangle fan at y = 0, normals up, double-sided.
+  private static func floorGeometry(_ hull: [SIMD2<Float>]) -> SCNGeometry {
+    let centre = hull.reduce(SIMD2<Float>.zero, +) / Float(hull.count)
+    var verts = [SCNVector3(centre.x, 0, centre.y)]
+    verts += hull.map { SCNVector3($0.x, 0, $0.y) }
+    var idx: [UInt32] = []
+    for i in 0..<hull.count {
+      idx += [0, UInt32(1 + (i + 1) % hull.count), UInt32(1 + i)]
+    }
+    let src = SCNGeometrySource(vertices: verts)
+    let normals = SCNGeometrySource(normals: verts.map { _ in SCNVector3(0, 1, 0) })
+    let geo = SCNGeometry(sources: [src, normals], elements: [SCNGeometryElement(indices: idx, primitiveType: .triangles)])
+    let fm = SCNMaterial()
+    fm.diffuse.contents = CGColor(red: 0.78, green: 0.72, blue: 0.64, alpha: 1)
+    fm.isDoubleSided = true
+    geo.materials = [fm]
+    return geo
   }
 
   /// Moves "defaultCamera" back along its current look direction so the whole room (all geometry)
