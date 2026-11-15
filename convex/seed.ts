@@ -194,16 +194,16 @@ export const status = internalQuery({
   },
 });
 
-export const SMOKE_PROMPT = "smoke check: a 120 cm walnut desk with two drawers";
+export const SMOKE_PREFIX = "smoke check:";
 
 // Removes the design and order the demo reset's smoke checks just created, and nothing else: the design
-// must carry SMOKE_PROMPT and both must be under 10 minutes old, the order no older than the design.
+// prompt must start with SMOKE_PREFIX and both must be under 10 minutes old, the order no older than the design.
 export const deleteSmoke = internalMutation({
   args: { orderId: v.optional(v.id("orders")), designId: v.id("designs") },
   handler: async (ctx, { orderId, designId }) => {
     const recent = (t: number) => Date.now() - t < 10 * 60 * 1000;
     const design = await ctx.db.get(designId);
-    if (!design || design.prompt !== SMOKE_PROMPT || !recent(design._creationTime)) return null;
+    if (!design || !design.prompt.startsWith(SMOKE_PREFIX) || !recent(design._creationTime)) return null;
     const order = orderId ? await ctx.db.get(orderId) : null;
     if (order && recent(order._creationTime) && order._creationTime >= design._creationTime) await ctx.db.delete(order._id);
     await ctx.db.delete(designId);
