@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import sampleRoom from "../Interest/Shared/SampleRoom.json";
 import * as data from "./seedData";
@@ -34,6 +34,24 @@ function roomTemplate(scan: any) {
       scannedSize: size(p.scannedSize),
     })),
   };
+}
+
+// Room i takes the i-th best-fitting product of the placement's category. With fit, a product must also
+// fit the scanned footprint (at most 30% + 10 cm wider or deeper), so a dining table never lands in a
+// coffee-table spot; an "other" product must be within 0.5 m of the scanned size. Without fit, this is
+// the rule earlier seeds used, which seed:correctSeeded needs to recognise their picks.
+function fitsSpot(product: Doc<"products">, scannedSize: Size | undefined) {
+  const fits = (a: number, b: number) => a <= b * 1.3 + 0.1;
+  return !scannedSize || (fits(product.dimensions.width, scannedSize.width) && fits(product.dimensions.depth, scannedSize.depth));
+}
+
+function pick(products: Doc<"products">[], category: Category, scannedSize: Size | undefined, i: number, fit: boolean) {
+  const ranked = rankByFit(products, category, scannedSize).filter((product) => {
+    if (!scannedSize) return true;
+    if (category === "other") return sizeDistance(product.dimensions, scannedSize) <= 0.5;
+    return !fit || fitsSpot(product, scannedSize);
+  });
+  return ranked[i % Math.max(ranked.length, 1)];
 }
 
 // Only fields the existing row does not have yet.
@@ -99,7 +117,7 @@ export const run = internalMutation({
         category: p.category,
         priceCents: p.priceCents,
         dimensions: { width: p.size[0], depth: p.size[1], height: p.size[2] },
-        vendorUrl: `https://example.com/p/${p.slug}`,
+        vendorUrl: p.vendorUrl,
       };
       const existing = await ctx.db
         .query("products")
@@ -133,10 +151,7 @@ export const run = internalMutation({
           published: true,
           shell: template.shell,
           placements: template.placements.map(({ scannedSize, ...p }) => {
-            const ranked = rankByFit(products, p.category, scannedSize).filter(
-              (product) => p.category !== "other" || !scannedSize || sizeDistance(product.dimensions, scannedSize) <= 0.5,
-            );
-            const product = ranked[i % Math.max(ranked.length, 1)];
+            const product = pick(products, p.category, scannedSize, i, true);
             return {
               ...p,
               ...(scannedSize ? { scannedSize } : {}),
@@ -149,6 +164,55 @@ export const run = internalMutation({
     }
 
     return { source: scanned.fromScan ? "SampleRoom.json + scan" : "SampleRoom.json", added };
+  },
+});
+
+// Corrects values an earlier seed wrote, and only while the row still carries them: the example.com
+// vendorUrl, a product's previous seeded name, and a seeded room's product pick that the earlier rule
+// made but that does not fit its spot. Anything the app or a person changed stays as it is.
+export const correctSeeded = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const corrected: string[] = [];
+    const products: Doc<"products">[] = [];
+    for (const p of data.products) {
+      const doc = await ctx.db
+        .query("products")
+        .withIndex("by_slug", (q) => q.eq("slug", p.slug))
+        .unique();
+      if (!doc) continue;
+      const patch: Partial<Doc<"products">> = {};
+      if (doc.vendorUrl === `https://example.com/p/${p.slug}`) patch.vendorUrl = p.vendorUrl;
+      if (p.previousName && doc.name === p.previousName) patch.name = p.name;
+      if (Object.keys(patch).length) {
+        await ctx.db.patch(doc._id, patch);
+        corrected.push(`${p.slug}: ${Object.keys(patch).join(", ")}`);
+      }
+      products.push(doc);
+    }
+
+    const template = roomTemplate(undefined);
+    for (const [i, r] of data.rooms.entries()) {
+      const room = await ctx.db
+        .query("rooms")
+        .withIndex("by_slug", (q) => q.eq("slug", r.slug))
+        .unique();
+      if (!room) continue;
+      let changed = false;
+      const placements = room.placements.map((placement) => {
+        const seeded = template.placements.find((t) => t.id === placement.id);
+        if (!seeded || placement.category !== seeded.category) return placement;
+        const before = pick(products, seeded.category, seeded.scannedSize, i, false);
+        if (!before || placement.productId !== before._id || fitsSpot(before, seeded.scannedSize)) return placement;
+        const after = pick(products, seeded.category, seeded.scannedSize, i, true);
+        if (!after) return placement;
+        changed = true;
+        corrected.push(`${r.slug}/${placement.id}: ${before.slug} → ${after.slug}`);
+        return { ...placement, productId: after._id as string };
+      });
+      if (changed) await ctx.db.patch(room._id, { placements });
+    }
+    return corrected;
   },
 });
 
@@ -180,6 +244,43 @@ export const attachFile = internalMutation({
     const url = await ctx.storage.getUrl(storageId);
     if (!doc || !url || (doc as Record<string, unknown>)[field]) return null;
     if (table === "rooms" && field !== "thumbnailUrl") return null;
+    await ctx.db.patch(doc._id, { [field]: url });
+    return url;
+  },
+});
+
+async function currentFile(ctx: QueryCtx, url: unknown) {
+  if (typeof url !== "string") return null;
+  for (const file of await ctx.db.system.query("_storage").collect()) {
+    if ((await ctx.storage.getUrl(file._id)) === url) return file;
+  }
+  return null;
+}
+
+// sha256 (base64) of the file the field currently points at, or null when it is empty or not one of ours.
+export const fileHash = internalQuery({
+  args: fileArgs,
+  handler: async (ctx, { table, slug, field }) => {
+    const doc = await ctx.db
+      .query(table)
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    return (await currentFile(ctx, doc && (doc as Record<string, unknown>)[field]))?.sha256 ?? null;
+  },
+});
+
+// Replaces a seeded file only while the field still points at one of our own placeholder files
+// (matched by content hash); anything the app or a person set is left alone. Nothing is deleted.
+export const replacePlaceholder = internalMutation({
+  args: { ...fileArgs, storageId: v.id("_storage"), placeholderHashes: v.array(v.string()) },
+  handler: async (ctx, { table, slug, field, storageId, placeholderHashes }) => {
+    const doc = await ctx.db
+      .query(table)
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    const current = await currentFile(ctx, doc && (doc as Record<string, unknown>)[field]);
+    const url = await ctx.storage.getUrl(storageId);
+    if (!doc || !current || !url || !placeholderHashes.includes(current.sha256)) return null;
     await ctx.db.patch(doc._id, { [field]: url });
     return url;
   },

@@ -15,32 +15,36 @@ export const sellers: { key: string; name: string; kind: string; userIndex?: num
   { key: "clayloft", name: "Clay Loft", kind: "creator", whopAccountId: "biz_qU5oBxnADjQBBQ" },
 ];
 
+// vendorUrl: a retailer page for a similar item. previousName: the name an earlier seed wrote, which
+// seed:correctSeeded may replace while the row still carries it.
 export const products: {
   slug: string;
   seller: string;
   name: string;
+  previousName?: string;
   category: Category;
   priceCents: number;
   size: [number, number, number];
+  vendorUrl: string;
 }[] = [
-  { slug: "harbor-lounge-chair", seller: "parcel", name: "Harbor Lounge Chair", category: "chair", priceCents: 18900, size: [0.7, 0.7, 0.85] },
-  { slug: "walnut-dining-chair", seller: "maya", name: "Walnut Dining Chair", category: "chair", priceCents: 14900, size: [0.45, 0.5, 0.9] },
-  { slug: "strand-desk-chair", seller: "nordhem", name: "Strand Desk Chair", category: "chair", priceCents: 7900, size: [0.55, 0.55, 0.95] },
-  { slug: "iron-cafe-chair", seller: "oakiron", name: "Iron Café Chair", category: "chair", priceCents: 12500, size: [0.45, 0.5, 0.85] },
-  { slug: "birk-coffee-table", seller: "nordhem", name: "Birk Coffee Table", category: "table", priceCents: 12900, size: [1.1, 0.6, 0.45] },
-  { slug: "live-edge-dining-table", seller: "oakiron", name: "Live Edge Dining Table", category: "table", priceCents: 89000, size: [1.8, 0.9, 0.75] },
-  { slug: "round-side-table", seller: "clayloft", name: "Round Side Table", category: "table", priceCents: 6900, size: [0.45, 0.45, 0.55] },
-  { slug: "linnea-3-seat-sofa", seller: "nordhem", name: "Linnea 3-Seat Sofa", category: "sofa", priceCents: 64900, size: [2.0, 0.9, 0.8] },
-  { slug: "cloud-sectional-sofa", seller: "parcel", name: "Cloud Sectional Sofa", category: "sofa", priceCents: 119900, size: [2.6, 1.6, 0.8] },
-  { slug: "stack-bookcase", seller: "parcel", name: "Stack Bookcase", category: "storage", priceCents: 9900, size: [0.8, 0.3, 1.8] },
-  { slug: "kallo-shelf-unit", seller: "nordhem", name: "Kallo Shelf Unit", category: "storage", priceCents: 8900, size: [0.77, 0.39, 1.47] },
-  { slug: "walnut-sideboard", seller: "maya", name: "Walnut Sideboard", category: "storage", priceCents: 79000, size: [1.6, 0.45, 0.75] },
-  { slug: "vista-55-tv", seller: "parcel", name: "Vista 55-inch TV with Stand", category: "television", priceCents: 49900, size: [1.4, 0.4, 1.1] },
-  { slug: "orbit-65-tv", seller: "parcel", name: "Orbit 65-inch TV on Console", category: "television", priceCents: 89900, size: [1.6, 0.45, 1.3] },
-  { slug: "fjell-queen-bed", seller: "nordhem", name: "Fjell Queen Bed", category: "bed", priceCents: 39900, size: [1.6, 2.1, 0.9] },
-  { slug: "oak-step-stool", seller: "maya", name: "Oak Step Stool", category: "other", priceCents: 5900, size: [0.4, 0.35, 0.45] },
-  { slug: "ceramic-floor-lamp", seller: "clayloft", name: "Ceramic Floor Lamp", category: "other", priceCents: 15900, size: [0.4, 0.4, 1.6] },
-  { slug: "rattan-armchair", seller: "clayloft", name: "Rattan Armchair", category: "chair", priceCents: 22900, size: [0.75, 0.75, 0.8] },
+  { slug: "harbor-lounge-chair", seller: "parcel", name: "Harbor Lounge Chair", category: "chair", priceCents: 18900, size: [0.7, 0.7, 0.85], vendorUrl: "https://www.ikea.com/us/en/cat/armchairs-chaises-fu006/" },
+  { slug: "walnut-dining-chair", seller: "maya", name: "Walnut Dining Chair", category: "chair", priceCents: 14900, size: [0.45, 0.5, 0.9], vendorUrl: "https://www.ikea.com/us/en/cat/dining-chairs-25219/" },
+  { slug: "strand-desk-chair", seller: "nordhem", name: "Strand Monobloc Chair", previousName: "Strand Desk Chair", category: "chair", priceCents: 7900, size: [0.55, 0.55, 0.95], vendorUrl: "https://www.ikea.com/us/en/search/?q=plastic%20chair" },
+  { slug: "iron-cafe-chair", seller: "oakiron", name: "Painted Wooden Chair", previousName: "Iron Café Chair", category: "chair", priceCents: 12500, size: [0.45, 0.5, 0.85], vendorUrl: "https://www.ikea.com/us/en/search/?q=wooden%20chair" },
+  { slug: "birk-coffee-table", seller: "nordhem", name: "Birk Coffee Table", category: "table", priceCents: 12900, size: [1.1, 0.6, 0.45], vendorUrl: "https://www.ikea.com/us/en/cat/accent-tables-10705/" },
+  { slug: "live-edge-dining-table", seller: "oakiron", name: "Live Edge Dining Table", category: "table", priceCents: 89000, size: [1.8, 0.9, 0.75], vendorUrl: "https://www.ikea.com/us/en/cat/dining-tables-21825/" },
+  { slug: "round-side-table", seller: "clayloft", name: "Round Side Table", category: "table", priceCents: 6900, size: [0.45, 0.45, 0.55], vendorUrl: "https://www.ikea.com/us/en/search/?q=round%20side%20table" },
+  { slug: "linnea-3-seat-sofa", seller: "nordhem", name: "Linnea 3-Seat Sofa", category: "sofa", priceCents: 64900, size: [2.0, 0.9, 0.8], vendorUrl: "https://www.ikea.com/us/en/cat/sofas-sectionals-fu003/" },
+  { slug: "cloud-sectional-sofa", seller: "parcel", name: "Cloud Sectional Sofa", category: "sofa", priceCents: 119900, size: [2.6, 1.6, 0.8], vendorUrl: "https://www.ikea.com/us/en/cat/fabric-sectionals-10671/" },
+  { slug: "stack-bookcase", seller: "parcel", name: "Stack Bookcase", category: "storage", priceCents: 9900, size: [0.8, 0.3, 1.8], vendorUrl: "https://www.ikea.com/us/en/cat/bookcases-10382/" },
+  { slug: "kallo-shelf-unit", seller: "nordhem", name: "Kallo Shelf Unit", category: "storage", priceCents: 8900, size: [0.77, 0.39, 1.47], vendorUrl: "https://www.ikea.com/us/en/cat/kallax-shelving-units-58285/" },
+  { slug: "walnut-sideboard", seller: "maya", name: "Walnut Sideboard", category: "storage", priceCents: 79000, size: [1.6, 0.45, 0.75], vendorUrl: "https://www.ikea.com/us/en/cat/sideboards-buffets-sofa-tables-30454/" },
+  { slug: "vista-55-tv", seller: "parcel", name: "Vista 55-inch TV with Stand", category: "television", priceCents: 49900, size: [1.4, 0.4, 1.1], vendorUrl: "https://www.amazon.com/s?k=55+inch+tv" },
+  { slug: "orbit-65-tv", seller: "parcel", name: "Orbit 65-inch TV on Console", category: "television", priceCents: 89900, size: [1.6, 0.45, 1.3], vendorUrl: "https://www.amazon.com/s?k=65+inch+tv" },
+  { slug: "fjell-queen-bed", seller: "nordhem", name: "Fjell Queen Bed", category: "bed", priceCents: 39900, size: [1.6, 2.1, 0.9], vendorUrl: "https://www.ikea.com/us/en/cat/beds-bm003/" },
+  { slug: "oak-step-stool", seller: "maya", name: "Oak Step Stool", category: "other", priceCents: 5900, size: [0.4, 0.35, 0.45], vendorUrl: "https://www.ikea.com/us/en/cat/step-stools-step-ladders-20611/" },
+  { slug: "ceramic-floor-lamp", seller: "clayloft", name: "Ceramic Floor Lamp", category: "other", priceCents: 15900, size: [0.4, 0.4, 1.6], vendorUrl: "https://www.ikea.com/us/en/cat/floor-lamps-10731/" },
+  { slug: "rattan-armchair", seller: "clayloft", name: "Rocking Armchair", previousName: "Rattan Armchair", category: "chair", priceCents: 22900, size: [0.75, 0.75, 0.8], vendorUrl: "https://www.ikea.com/us/en/search/?q=rocking%20chair" },
 ];
 
 // Published demo rooms, all built from one scan (seed/scans/*.json, else SampleRoom.json). Room i takes
