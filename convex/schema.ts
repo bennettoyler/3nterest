@@ -85,6 +85,7 @@ export default defineSchema({
     title: v.string(),
     thumbnailUrl: v.optional(v.string()),
     published: v.boolean(),
+    publishedAt: v.optional(v.number()),
     shell: roomShell,
     placements: v.array(placement),
     remixedFromId: v.optional(v.id("rooms")),
