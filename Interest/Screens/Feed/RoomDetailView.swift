@@ -8,6 +8,7 @@ struct RoomDetailView: View {
   let checkout: CheckoutFlow
   let onRemix: () -> Void
 
+  @State private var designs: [Design] = []
   @State private var selectedProduct: Product?
   @State private var buying: Product?
   @State private var saveMessage: String?
@@ -22,7 +23,8 @@ struct RoomDetailView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 16) {
-        RoomViewerView(room: room, products: products, designs: [])
+        RoomViewerView(room: room, products: products, designs: designs)
+          .id(designs)
           .frame(height: 300)
 
         VStack(alignment: .leading, spacing: 4) {
@@ -77,6 +79,11 @@ struct RoomDetailView: View {
     .tint(Color.accentColor)
     .navigationTitle(room.title)
     .navigationBarTitleDisplayMode(.inline)
+    .task(id: room.id) {
+      let ids = room.placements.compactMap(\.designId)
+      guard !ids.isEmpty else { return }
+      designs = (try? await backend.designs(ids: ids)) ?? []
+    }
     .sheet(item: $selectedProduct) { product in
       ProductSheet(
         product: product,

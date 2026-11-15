@@ -28,6 +28,7 @@ export const run = internalMutation({
         await ctx.db.insert("sellers", {
           name: s.name,
           kind: s.kind,
+          whopAccountId: s.whopAccountId,
           ...(s.userIndex === undefined ? {} : { userId: userIds[s.userIndex] }),
         }),
       );

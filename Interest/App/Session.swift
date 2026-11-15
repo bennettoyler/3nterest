@@ -31,6 +31,10 @@ import Observation
     isStarted = true
   }
 
+  @MainActor func reloadProducts() async {
+    if let latest = try? await backend.products() { products = latest }
+  }
+
   private struct Loaded {
     var users: [User]
     var products: [Product]

@@ -137,6 +137,7 @@ private struct BuilderMessage: Identifiable {
 }
 
 private struct BuilderDesignCard: View {
+  @Environment(Session.self) private var session: Session?
   let design: Design
   let backend: any Backend
   let onShowCutList: () -> Void
@@ -224,6 +225,7 @@ private struct BuilderDesignCard: View {
     Task {
       do {
         listing = .listed(try await backend.listForSale(designId: design.id, priceCents: priceCents))
+        await session?.reloadProducts()
       } catch {
         listing = .pricing
         listingFailed = true
