@@ -5,7 +5,7 @@ struct CreateFlowView: View {
   let backend: any Backend
   let products: [Product]
   let currentUser: User
-  let onBuy: (Product) -> Void
+  let checkout: CheckoutFlow
   let onPublished: () -> Void
 
   @State private var room = Room(
@@ -14,6 +14,7 @@ struct CreateFlowView: View {
   @State private var editing = false
   @State private var selection: String?
   @State private var sheet: Sheet?
+  @State private var buying: Product?
 
   private enum Sheet: Identifiable {
     case info(Product)
@@ -67,10 +68,14 @@ struct CreateFlowView: View {
       case .info(let product):
         ProductSheet(
           product: product,
-          onBuy: { onBuy(product) },
+          onBuy: { buying = product },
           onSave: {
             Task { try? await backend.save(roomId: nil, productId: product.id, userId: currentUser.id) }
-          })
+          }
+        )
+        .sheet(item: $buying) { product in
+          CheckoutView(flow: checkout, product: product, buyer: currentUser)
+        }
       case .swap(let placement):
         catalog(title: "Swap \(placement.category.rawValue)", products: products.filter { $0.category == placement.category }) { product in
           guard let index = room.placements.firstIndex(where: { $0.id == placement.id }) else { return }
@@ -268,7 +273,7 @@ private struct CreateFlowPreview: View {
   var body: some View {
     NavigationStack {
       if let user {
-        CreateFlowView(backend: backend, products: products, currentUser: user, onBuy: { _ in }, onPublished: {})
+        CreateFlowView(backend: backend, products: products, currentUser: user, checkout: CheckoutFlow(backend: backend), onPublished: {})
       } else {
         ProgressView()
       }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RootTabView: View {
   @Environment(Session.self) private var session
+  @Environment(CheckoutFlow.self) private var checkout: CheckoutFlow?
   @State private var tab = AppTab.home
   @State private var homePath = NavigationPath()
 
@@ -10,7 +11,7 @@ struct RootTabView: View {
   }
 
   var body: some View {
-    if session.isStarted {
+    if session.isStarted, let checkout {
       TabView(selection: $tab) {
         NavigationStack(path: $homePath) {
           FeedView(backend: session.backend)
@@ -20,9 +21,7 @@ struct RootTabView: View {
                 products: session.products,
                 backend: session.backend,
                 currentUser: session.currentUser,
-                onBuy: { _ in
-                  // TODO(B4): present CheckoutView for the product.
-                },
+                checkout: checkout,
                 onRemix: {
                   // TODO(B5): call backend.remix and open the copy in the editor.
                 })
@@ -36,9 +35,7 @@ struct RootTabView: View {
             backend: session.backend,
             products: session.products,
             currentUser: session.currentUser,
-            onBuy: { _ in
-              // TODO(B4): present CheckoutView for the product.
-            },
+            checkout: checkout,
             onPublished: {
               homePath = NavigationPath()
               tab = .home

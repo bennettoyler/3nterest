@@ -5,10 +5,11 @@ struct RoomDetailView: View {
   let products: [Product]
   let backend: any Backend
   let currentUser: User
-  let onBuy: (Product) -> Void
+  let checkout: CheckoutFlow
   let onRemix: () -> Void
 
   @State private var selectedProduct: Product?
+  @State private var buying: Product?
   @State private var saveMessage: String?
 
   private var items: [(placement: Placement, product: Product)] {
@@ -82,10 +83,14 @@ struct RoomDetailView: View {
     .sheet(item: $selectedProduct) { product in
       ProductSheet(
         product: product,
-        onBuy: { onBuy(product) },
+        onBuy: { buying = product },
         onSave: {
           Task { try? await backend.save(roomId: nil, productId: product.id, userId: currentUser.id) }
-        })
+        }
+      )
+      .sheet(item: $buying) { product in
+        CheckoutView(flow: checkout, product: product, buyer: currentUser)
+      }
     }
     .alert(saveMessage ?? "", isPresented: Binding(get: { saveMessage != nil }, set: { if !$0 { saveMessage = nil } })) {
       Button("OK", role: .cancel) {}
@@ -111,7 +116,7 @@ private struct RoomDetailPreview: View {
   var body: some View {
     NavigationStack {
       if let room, let user {
-        RoomDetailView(room: room, products: products, backend: backend, currentUser: user, onBuy: { _ in }, onRemix: {})
+        RoomDetailView(room: room, products: products, backend: backend, currentUser: user, checkout: CheckoutFlow(backend: backend), onRemix: {})
       } else {
         ProgressView()
       }
