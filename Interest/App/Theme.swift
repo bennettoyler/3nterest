@@ -10,7 +10,7 @@ struct PinLogo: View {
 
   var body: some View {
     Text("3")
-      .font(.system(size: size * 0.72, weight: .bold))
+      .font(.system(size: size * 0.72, weight: .regular))
       .foregroundStyle(Theme.white)
       .frame(width: size, height: size)
       .background(Theme.orange, in: RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
