@@ -23,13 +23,40 @@ test("paid: a paid payment for the checkout configuration", async () => {
   const url = new URL(seen[0]);
   expect(url.pathname).toBe("/api/v1/payments");
   expect(url.searchParams.get("account_id")).toBe("biz_seller");
-  expect(url.searchParams.get("variant_id")).toBe("plan_1");
+  expect(url.searchParams.has("variant_id")).toBe(false);
   expect(url.searchParams.get("status")).toBe("paid");
 });
 
 test("paid: matched by metadata.orderId", async () => {
   const fetchFn = respond(200, { data: [{ id: "pay_2", status: "paid", checkout_configuration_id: null, metadata: { orderId: "ord1" } }] });
   expect(await verifyPayment(order, env, fetchFn)).toEqual({ result: "paid", paymentId: "pay_2" });
+});
+
+test("not found: a payment linked to the order only by its variant (another buyer may own it)", async () => {
+  const fetchFn = respond(200, { data: [{ id: "pay_v", status: "paid", variant_id: "plan_1", checkout_configuration_id: null, metadata: null }] });
+  expect(await verifyPayment(order, env, fetchFn)).toEqual({ result: "not_found" });
+});
+
+test("paid: the linked payment is found among other payments on the same variant", async () => {
+  const data = [
+    { id: "pay_v", status: "paid", variant_id: "plan_1" },
+    { id: "pay_ch", status: "paid", variant_id: "plan_1", checkout_configuration_id: "ch_1" },
+  ];
+  expect(await verifyPayment(order, env, respond(200, { data }))).toEqual({ result: "paid", paymentId: "pay_ch" });
+});
+
+test("not found: another order's payment on the same account and variant", async () => {
+  const data = [
+    { id: "pay_a", status: "paid", variant_id: "plan_1", checkout_configuration_id: "ch_other" },
+    { id: "pay_b", status: "paid", variant_id: "plan_1", metadata: { orderId: "ord_other" } },
+    { id: "pay_c", status: "paid", variant_id: "plan_other" },
+  ];
+  expect(await verifyPayment(order, env, respond(200, { data }))).toEqual({ result: "not_found" });
+});
+
+test("not found: a 200 whose JSON is not a list of payments", async () => {
+  expect(await verifyPayment(order, env, respond(200, null))).toEqual({ result: "not_found" });
+  expect(await verifyPayment(order, env, respond(200, { data: "x" }))).toEqual({ result: "not_found" });
 });
 
 test("not found: no payments, another checkout's payment, unpaid or refunded payments", async () => {

@@ -118,5 +118,7 @@ export default defineSchema({
     whopVariantId: v.optional(v.string()),
     whopAccountId: v.optional(v.string()),
     whopPaymentId: v.optional(v.string()),
-  }).index("by_seller_status", ["sellerId", "status"]),
+  })
+    .index("by_seller_status", ["sellerId", "status"])
+    .index("by_whop_payment", ["whopPaymentId"]),
 });
