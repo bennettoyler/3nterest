@@ -16,28 +16,37 @@ enum RoomSceneBuilder {
       fw = max(maxX - minX, 1); fd = max(maxZ - minZ, 1)
       cx = (minX + maxX) / 2; cz = (minZ + maxZ) / 2
     } else {
-      fw = 4; fd = 4; cx = 0; cz = 0
-      hull = [SIMD2(-2, -2), SIMD2(2, -2), SIMD2(2, 2), SIMD2(-2, 2)]
+      // No usable walls: floor from the placements' bounding box padded by 1 m (4 x 4 m if none).
+      let pts = room.placements.filter { $0.transform.count == 16 }.map { SIMD2<Float>($0.transform[12], $0.transform[14]) }
+      var minX: Float = -2, maxX: Float = 2, minZ: Float = -2, maxZ: Float = 2
+      if !pts.isEmpty {
+        minX = pts.map(\.x).min()! - 1; maxX = pts.map(\.x).max()! + 1
+        minZ = pts.map(\.y).min()! - 1; maxZ = pts.map(\.y).max()! + 1
+      }
+      fw = maxX - minX; fd = maxZ - minZ; cx = (minX + maxX) / 2; cz = (minZ + maxZ) / 2
+      hull = [SIMD2(minX, minZ), SIMD2(maxX, minZ), SIMD2(maxX, maxZ), SIMD2(minX, maxZ)]
     }
 
     // Surfaces: single-sided planes facing the room centre (dollhouse view)
-    let decorated = RoomDecor.matches(room.shell)
+    let decorated = RoomDecor.applies(to: room)
     for w in room.shell.walls {
-      let color = RoomDecor.wallColor(for: w, in: room.shell) ?? CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)
+      let color = (decorated ? RoomDecor.wallColor(for: w, in: room.shell) : nil) ?? CGColor(red: 0.97, green: 0.97, blue: 0.96, alpha: 1)
       root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0, color: color))
     }
-    // Decor doors fully cover the plain door quads; blinds leave a border, so window quads stay.
-    for d in room.shell.doors where !decorated {
-      root.addChildNode(surfaceNode(d, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.30, blue: 0.18, alpha: 1)))
-    }
-    for w in room.shell.windows {
-      root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.58, blue: 0.70, alpha: 1)))
+    // Sample room keeps its decor door/blinds; every other room gets generic doors and windows.
+    if decorated {
+      for w in room.shell.windows {
+        root.addChildNode(surfaceNode(w, centre: (cx, cz), offset: 0.015, color: CGColor(red: 0.45, green: 0.58, blue: 0.70, alpha: 1)))
+      }
+    } else {
+      for (i, d) in room.shell.doors.enumerated() { root.addChildNode(RoomDecor.doorNode(for: d, centre: (cx, cz), index: i)) }
+      for (i, w) in room.shell.windows.enumerated() { root.addChildNode(RoomDecor.windowNode(for: w, centre: (cx, cz), index: i)) }
     }
     let floor = SCNNode(geometry: floorGeometry(hull))
     floor.name = "floor"
-    if let fc = RoomDecor.floorColor(for: room.shell) { floor.geometry?.firstMaterial?.diffuse.contents = fc }
+    if decorated, let fc = RoomDecor.floorColor(for: room.shell) { floor.geometry?.firstMaterial?.diffuse.contents = fc }
     root.addChildNode(floor)
-    for n in RoomDecor.nodes(for: room.shell) { root.addChildNode(n) }
+    if decorated { for n in RoomDecor.nodes(for: room.shell) { root.addChildNode(n) } }
 
     // Placements
     for p in room.placements {
@@ -154,6 +163,16 @@ enum RoomSceneBuilder {
     camera.zFar = Double(max(200, distance + radius * 2))
   }
 
+  /// Per-axis scale of a product to the scanned size, each ratio clamped to 0.75...1.4 (width/depth swapped if that fits better).
+  static func scannedScale(_ scanned: Dimensions?, product: Product) -> SCNVector3 {
+    guard let s = scanned else { return SCNVector3(1, 1, 1) }
+    let d = product.dimensions
+    var w = s.width, dp = s.depth
+    if abs(dp - d.width) + abs(w - d.depth) < abs(w - d.width) + abs(dp - d.depth) { swap(&w, &dp) }
+    func r(_ a: Float, _ b: Float) -> Float { b > 1e-4 ? max(0.75, min(1.4, a / b)) : 1 }
+    return SCNVector3(r(w, d.width), r(s.height, d.height), r(dp, d.depth))
+  }
+
   /// Container node: name = placement.id, transform = placement.transform, base at y = 0.
   static func placementNode(for placement: Placement, products: [Product], designs: [Design]) -> SCNNode {
     let container = SCNNode()
@@ -163,15 +182,19 @@ enum RoomSceneBuilder {
     let wallTV = placement.category == .television && placement.transform.count == 16 && placement.transform[13] > 0.3
     if wallTV {
       let product = placement.productId.flatMap { pid in products.first(where: { $0.id == pid }) }
-      let size = product?.dimensions ?? placement.scannedSize ?? Dimensions(width: 1.2, depth: 0.06, height: 0.7)
+      let size = placement.scannedSize ?? product?.dimensions ?? Dimensions(width: 1.2, depth: 0.06, height: 0.7)
       container.addChildNode(FurnitureShapes.wallTelevision(size: size))
     } else if let pid = placement.productId, let product = products.first(where: { $0.id == pid }) {
-      container.addChildNode(ModelCache.fallbackBox(for: product))
-      let placeholder = container.childNodes.first
+      let scale = scannedScale(placement.scannedSize, product: product)
+      let box = ModelCache.fallbackBox(for: product)
+      box.scale = scale
+      container.addChildNode(box)
+      let placeholder = box
       Task {
         let loaded = await ModelCache.shared.node(for: product)
         await MainActor.run {
-          placeholder?.removeFromParentNode()
+          placeholder.removeFromParentNode()
+          loaded.scale = scale
           container.addChildNode(loaded)
         }
       }

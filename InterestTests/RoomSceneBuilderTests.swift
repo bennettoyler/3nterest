@@ -65,4 +65,44 @@ final class RoomSceneBuilderTests: XCTestCase {
     let (lo, hi) = child.boundingBox
     XCTAssertLessThan(hi.z - lo.z, 0.15)
   }
+
+  func testScannedRoomWithSampleShellGetsNoDecor() {
+    var room = StubBackend.sampleRoom()
+    room.placements = room.placements.map { var p = $0; p.id = UUID().uuidString; return p }
+    let scene = RoomSceneBuilder.scene(for: room, products: [], designs: [])
+    var decor = 0
+    scene.rootNode.enumerateHierarchy { n, _ in if (n.name ?? "").hasPrefix("decor-") { decor += 1 } }
+    XCTAssertEqual(decor, 0)
+    XCTAssertNotNil(scene.rootNode.childNode(withName: "shell-door-0", recursively: false))
+    XCTAssertNotNil(scene.rootNode.childNode(withName: "shell-window-0", recursively: false))
+    let floor = scene.rootNode.childNode(withName: "floor", recursively: false)
+    let c = floor?.geometry?.firstMaterial?.diffuse.contents as? UIColor
+    XCTAssertEqual(Float(c?.cgColor.components?[0] ?? 0), 0.78, accuracy: 0.01)
+  }
+
+  func testWallessRoomStillHasFloor() throws {
+    let pl = Placement(id: "a", transform: transformArray(position: [3, 0, 1], yawRadians: 0), productId: nil,
+                       designId: nil, category: .other, scannedSize: .init(width: 1, depth: 1, height: 1))
+    let room = Room(id: "r", ownerId: "u", ownerName: "U", title: "T", thumbnailUrl: nil, published: false,
+                    shell: RoomShell(walls: [], doors: [], windows: []), placements: [pl], remixedFromId: nil)
+    let scene = RoomSceneBuilder.scene(for: room, products: [], designs: [])
+    let floor = try XCTUnwrap(scene.rootNode.childNode(withName: "floor", recursively: false))
+    let (lo, hi) = floor.boundingBox
+    XCTAssertEqual(Float(lo.x), 2, accuracy: 1e-3)
+    XCTAssertEqual(Float(hi.x), 4, accuracy: 1e-3)
+  }
+
+  private func scaledChildX(scannedWidth: Float) -> Float {
+    let product = Product.fixture(id: "p", category: .table, dimensions: .init(width: 1.0, depth: 0.5, height: 0.7))
+    let pl = Placement(id: "pl", transform: transformArray(position: [0, 0, 0], yawRadians: 0),
+                       productId: "p", designId: nil, category: .table,
+                       scannedSize: .init(width: scannedWidth, depth: 0.5, height: 0.7))
+    let node = RoomSceneBuilder.placementNode(for: pl, products: [product], designs: [])
+    return node.childNodes.first!.scale.x
+  }
+
+  func testScannedSizeScalesProductNode() {
+    XCTAssertEqual(scaledChildX(scannedWidth: 1.2), 1.2, accuracy: 0.01)
+    XCTAssertEqual(scaledChildX(scannedWidth: 3.0), 1.4, accuracy: 0.01)
+  }
 }
