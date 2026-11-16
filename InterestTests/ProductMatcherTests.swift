@@ -20,4 +20,10 @@ final class ProductMatcherTests: XCTestCase {
     let m = ProductMatcher.match(category: .table, size: .init(width: 1.5, depth: 0.8, height: 0.74), in: [design, stock])
     XCTAssertEqual(m?.id, "s")
   }
+
+  func testOtherCategoryOnlyMatchesNearSizes() {
+    let lamp = Product.fixture(id: "l", category: .other, dimensions: .init(width: 0.4, depth: 0.4, height: 1.6))
+    XCTAssertNil(ProductMatcher.match(category: .other, size: .init(width: 0.9, depth: 0.7, height: 1.8), in: [lamp]))
+    XCTAssertEqual(ProductMatcher.match(category: .other, size: .init(width: 0.5, depth: 0.4, height: 1.5), in: [lamp])?.id, "l")
+  }
 }

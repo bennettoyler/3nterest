@@ -6,8 +6,11 @@ enum ProductMatcher {
     func distance(_ d: Dimensions) -> Float {
       abs(d.width - size.width) + abs(d.depth - size.depth) + abs(d.height - size.height)
     }
-    return products
+    let best = products
       .filter { $0.category == category && $0.designId == nil }
       .min { distance($0.dimensions) < distance($1.dimensions) }
+    // Unrecognised objects only match a product of nearly the same size; otherwise draw a neutral box.
+    if category == .other, let best, distance(best.dimensions) > 0.5 { return nil }
+    return best
   }
 }

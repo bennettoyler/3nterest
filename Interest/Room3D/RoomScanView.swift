@@ -7,6 +7,8 @@ struct RoomScanView: View {
   let onFinish: (Room) -> Void
 
   @State private var matching = false
+  @State private var processing = false
+  @State private var failureReason: String?
   @State private var scanner = ScanController()
 
   init(products: [Product], owner: User, onFinish: @escaping (Room) -> Void) {
@@ -37,7 +39,7 @@ struct RoomScanView: View {
           HStack(spacing: 12) {
             Button("Use sample room") { finishWithSample() }
               .buttonStyle(.bordered).tint(orange)
-            Button("Done") { scanner.stop() }
+            Button("Done") { processing = true; failureReason = nil; scanner.stop() }
               .buttonStyle(.borderedProminent).tint(orange)
           }
           .padding(.bottom, exportURL == nil ? 24 : 8)
@@ -53,6 +55,39 @@ struct RoomScanView: View {
         }
         .padding()
       }
+      if processing && failureReason == nil && !matching {
+        ZStack {
+          Color.white.ignoresSafeArea()
+          VStack(spacing: 16) {
+            ProgressView().tint(orange).scaleEffect(1.5)
+            Text("Processing your scan…").foregroundStyle(orange).font(.headline)
+          }
+        }
+        .transition(.opacity)
+      }
+      if let reason = failureReason, !matching {
+        ZStack {
+          Color.white.ignoresSafeArea()
+          VStack(spacing: 14) {
+            Text("We couldn't build a room from that scan.")
+              .font(.headline).multilineTextAlignment(.center)
+            Text(reason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+              Button("Use sample room") { finishWithSample() }
+                .buttonStyle(.bordered).tint(orange)
+              Button("Scan again") {
+                failureReason = nil
+                processing = false
+                scanner.restart()
+              }
+              .buttonStyle(.borderedProminent).tint(orange)
+            }
+            .padding(.top, 6)
+          }
+          .padding(24)
+        }
+        .transition(.opacity)
+      }
       if matching {
         ZStack {
           Color.white.ignoresSafeArea()
@@ -65,13 +100,15 @@ struct RoomScanView: View {
       }
     }
     .onAppear {
-      scanner.onResult = { captured in
-        if let captured {
+      scanner.onResult = { result in
+        switch result {
+        case .success(let captured):
           let room = CapturedRoomConverter.room(from: captured, ownerId: owner.id, ownerName: owner.name, products: products)
           _ = ScanExport.save(room)
           finish(with: room)
-        } else {
-          finishWithSample()
+        case .failure(let failure):
+          ScanExport.saveError(failure.reason)
+          if !matching { withAnimation { failureReason = failure.reason } }
         }
       }
     }
@@ -110,6 +147,12 @@ enum ScanExport {
     return FileManager.default.fileExists(atPath: url.path) ? url : nil
   }
 
+  static func saveError(_ reason: String) {
+    print("INTEREST SCAN FAILURE: \(reason)")
+    guard let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+    try? reason.write(to: dir.appendingPathComponent("LastScanError.txt"), atomically: true, encoding: .utf8)
+  }
+
   @discardableResult
   static func save(_ room: Room) -> URL? {
     let encoder = JSONEncoder()
@@ -131,22 +174,35 @@ enum ScanExport {
   }
 }
 
+struct ScanFailure: Error { let reason: String }
+
 /// Owns the capture view's session and receives the processed result.
 final class ScanController {
   weak var captureView: RoomCaptureView?
-  var onResult: ((CapturedRoom?) -> Void)?
-  private var delivered = false
+  var onResult: ((Result<CapturedRoom, ScanFailure>) -> Void)?
+  private var succeeded = false
+  private var generation = 0
 
   func stop() {
     captureView?.captureSession.stop()
-    // If RoomPlan never produces a result, fall back to the sample room.
-    DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in self?.deliver(nil) }
+    let g = generation
+    // If RoomPlan never produces a result, show the failure overlay. A late real result is still accepted.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 60) { [weak self] in
+      guard let self, self.generation == g else { return }
+      self.deliver(.failure(ScanFailure(reason: "Processing took too long (no result after 60 seconds).")))
+    }
   }
 
-  func deliver(_ room: CapturedRoom?) {
-    guard !delivered else { return }
-    delivered = true
-    onResult?(room)
+  func restart() {
+    generation += 1
+    succeeded = false
+    captureView?.captureSession.run(configuration: RoomCaptureSession.Configuration())
+  }
+
+  func deliver(_ result: Result<CapturedRoom, ScanFailure>) {
+    guard !succeeded else { return }
+    if case .success = result { succeeded = true }
+    onResult?(result)
   }
 }
 
@@ -179,13 +235,23 @@ private struct ScanCaptureView: UIViewRepresentable {
     func encode(with coder: NSCoder) {}
 
     func captureView(shouldPresent roomDataForProcessing: CapturedRoomData, error: Error?) -> Bool {
-      error == nil
+      if let error {
+        let reason = error.localizedDescription
+        DispatchQueue.main.async { self.controller.deliver(.failure(ScanFailure(reason: reason))) }
+        return false
+      }
+      return true
     }
 
     func captureView(didPresent processedResult: CapturedRoom, error: Error?) {
       DispatchQueue.main.async {
-        let usable = error == nil && !processedResult.walls.isEmpty
-        self.controller.deliver(usable ? processedResult : nil)
+        if let error {
+          self.controller.deliver(.failure(ScanFailure(reason: error.localizedDescription)))
+        } else if processedResult.walls.isEmpty && processedResult.objects.isEmpty {
+          self.controller.deliver(.failure(ScanFailure(reason: "The scan found no walls or objects. Try moving slowly and scanning the walls.")))
+        } else {
+          self.controller.deliver(.success(processedResult))
+        }
       }
     }
   }

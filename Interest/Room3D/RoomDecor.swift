@@ -11,6 +11,11 @@ enum RoomDecor {
     return shell.walls.allSatisfy { abs($0.height - 2.42) <= 0.06 }
   }
 
+  /// True only for the bundled sample room (its placement ids start with "sample-"; real scans use UUIDs).
+  static func applies(to room: Room) -> Bool {
+    matches(room.shell) && room.placements.contains { $0.id.hasPrefix("sample-") }
+  }
+
   static func floorColor(for shell: RoomShell) -> CGColor? {
     matches(shell) ? hex(0x4A4A4C) : nil
   }
@@ -154,9 +159,9 @@ enum RoomDecor {
   }
 
   /// +1 or -1: which local-Z direction of the surface points toward the room centre.
-  private static func roomSideSign(_ s: Surface) -> Float {
+  private static func roomSideSign(_ s: Surface, centre: (Float, Float) = (0, 0)) -> Float {
     let t = s.transform
-    let dot = t[8] * (-t[12]) + t[10] * (-t[14])
+    let dot = t[8] * (centre.0 - t[12]) + t[10] * (centre.1 - t[14])
     return dot >= 0 ? 1 : -1
   }
 
@@ -190,6 +195,33 @@ enum RoomDecor {
     box(n, d.width, d.height - 0.01, 0.02, at: SCNVector3(0, 0, s * 0.02), hex(0xFAFAFA))
     box(n, d.width * 0.5, d.height * 0.4, 0.012, at: SCNVector3(0, d.height * 0.18, s * 0.03), hex(0xB7C4CF))
     box(n, 0.02, 0.12, 0.05, at: SCNVector3(d.width * 0.38, -d.height * 0.03, s * 0.045), hex(0x2A2A2C))
+    return n
+  }
+
+  /// Generic door for any room: white leaf + dark handle, on the side of the wall facing `centre` (x, z).
+  static func doorNode(for d: Surface, centre: (Float, Float), index: Int) -> SCNNode {
+    let n = SCNNode()
+    n.name = "shell-door-\(index)"
+    guard d.transform.count == 16 else { return n }
+    n.transform = d.transform.scnMatrix
+    let s = roomSideSign(d, centre: centre)
+    panel(n, d.width, d.height - 0.01, at: SCNVector3(0, 0, s * 0.02), facing: s, hex(0xFAFAF8))
+    panel(n, d.width * 0.84, d.height * 0.94, at: SCNVector3(0, 0, s * 0.025), facing: s, hex(0xEFEFEA))
+    box(n, 0.02, 0.12, 0.05, at: SCNVector3(d.width * 0.38, -d.height * 0.03, s * 0.05), hex(0x2A2A2C))
+    return n
+  }
+
+  /// Generic window for any room: light frame, pale glass, mullion cross; single-sided toward `centre`.
+  static func windowNode(for w: Surface, centre: (Float, Float), index: Int) -> SCNNode {
+    let n = SCNNode()
+    n.name = "shell-window-\(index)"
+    guard w.transform.count == 16 else { return n }
+    n.transform = w.transform.scnMatrix
+    let s = roomSideSign(w, centre: centre)
+    panel(n, w.width, w.height, at: SCNVector3(0, 0, s * 0.02), facing: s, hex(0xF1EFE9))
+    panel(n, w.width * 0.90, w.height * 0.90, at: SCNVector3(0, 0, s * 0.025), facing: s, hex(0xC9DAE6))
+    panel(n, 0.03, w.height * 0.90, at: SCNVector3(0, 0, s * 0.03), facing: s, hex(0xF1EFE9))
+    panel(n, w.width * 0.90, 0.03, at: SCNVector3(0, 0, s * 0.03), facing: s, hex(0xF1EFE9))
     return n
   }
 

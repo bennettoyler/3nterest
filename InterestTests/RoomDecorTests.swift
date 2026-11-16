@@ -30,6 +30,19 @@ final class RoomDecorTests: XCTestCase {
     XCTAssertFalse(RoomDecor.matches(smallShell()))
   }
 
+  private func room(_ shell: RoomShell, ids: [String]) -> Room {
+    let pls = ids.map { Placement(id: $0, transform: transformArray(position: [0, 0, 0], yawRadians: 0),
+                                  productId: nil, designId: nil, category: .table, scannedSize: .init(width: 1, depth: 1, height: 1)) }
+    return Room(id: "r", ownerId: "u", ownerName: "U", title: "T", thumbnailUrl: nil, published: false,
+                shell: shell, placements: pls, remixedFromId: nil)
+  }
+
+  func testAppliesOnlyToBundledSample() {
+    XCTAssertTrue(RoomDecor.applies(to: StubBackend.sampleRoom()))
+    XCTAssertFalse(RoomDecor.applies(to: room(meetingShell(), ids: [UUID().uuidString])))
+    XCTAssertFalse(RoomDecor.applies(to: room(smallShell(), ids: ["sample-1"])))
+  }
+
   func testNodes() {
     let nodes = RoomDecor.nodes(for: meetingShell())
     XCTAssertFalse(nodes.isEmpty)
