@@ -41,6 +41,7 @@ struct ObjectScanView: View {
   @State private var captureSession: AnyObject?
   @State private var imagesDir: URL?
   @State private var buildTask: Task<Void, Never>?
+  @State private var watchdogTask: Task<Void, Never>?
 
   private let orange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
@@ -163,29 +164,41 @@ struct ObjectScanView: View {
     errorText = nil
     stage = .building
     let output = images.deletingLastPathComponent().appendingPathComponent("model.usdz")
+    watchdogTask?.cancel(); watchdogTask = nil
+    buildTask?.cancel()
     buildTask = Task {
       do {
         try? FileManager.default.removeItem(at: output)
         let ps = try PhotogrammetrySession(input: images, configuration: PhotogrammetrySession.Configuration())
         try ps.process(requests: [.modelFile(url: output, detail: .reduced)])
         var done = false
-        for try await o in ps.outputs {
+        outputLoop: for try await o in ps.outputs {
           switch o {
           case .requestProgress(_, let fraction):
-            await MainActor.run { progress = fraction }
+            await MainActor.run { updateProgress(fraction) }
           case .requestComplete:
             done = true
+            break outputLoop
+          case .processingComplete:
+            break outputLoop
+          case .processingCancelled:
+            await MainActor.run { watchdogTask?.cancel(); watchdogTask = nil }
+            return
           case .requestError(_, let error):
             throw error
           default:
             break
           }
         }
+        await MainActor.run { watchdogTask?.cancel(); watchdogTask = nil }
         if Task.isCancelled { return }
-        guard done else { throw ScannedObjectBuilder.BuildError.emptyModel }
+        guard done || FileManager.default.fileExists(atPath: output.path) else {
+          throw ScannedObjectBuilder.BuildError.emptyModel
+        }
         let obj = try ScannedObjectBuilder.object(fromUSDZ: output, name: "Scanned object")
         await MainActor.run { scanned = obj; name = obj.name; stage = .naming }
       } catch {
+        await MainActor.run { watchdogTask?.cancel(); watchdogTask = nil }
         if Task.isCancelled { return }
         await MainActor.run { fail("Could not build the 3D model: \(error.localizedDescription)", retry: { startReconstruction() }) }
       }
@@ -193,12 +206,28 @@ struct ObjectScanView: View {
     #endif
   }
 
+  /// Updates progress and arms a 180 s watchdog the first time progress reaches 99%.
+  private func updateProgress(_ fraction: Double) {
+    progress = fraction
+    guard fraction >= 0.99, watchdogTask == nil, stage == .building else { return }
+    watchdogTask = Task {
+      try? await Task.sleep(nanoseconds: 180_000_000_000)
+      if Task.isCancelled { return }
+      await MainActor.run {
+        guard stage == .building else { return }
+        buildTask?.cancel(); buildTask = nil
+        watchdogTask = nil
+        fail("Building the 3D model took too long.", retry: { startReconstruction() })
+      }
+    }
+  }
+
   private var buildingView: some View {
     VStack(spacing: 16) {
       ProgressView()
-      Text("Building 3D model… \(Int((progress * 100).rounded()))%").font(.headline)
+      Text(progress >= 0.99 ? "Finishing 3D model…" : "Building 3D model… \(Int((progress * 100).rounded()))%").font(.headline)
       Text("This can take a minute. Keep the app open.").font(.footnote).foregroundStyle(.secondary)
-      Button("Cancel") { buildTask?.cancel(); buildTask = nil; stage = .choose }
+      Button("Cancel") { buildTask?.cancel(); buildTask = nil; watchdogTask?.cancel(); watchdogTask = nil; stage = .choose }
     }
     .padding()
   }
