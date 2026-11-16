@@ -8,7 +8,7 @@ actor ModelCache {
   private let session: URLSession = {
     let c = URLSessionConfiguration.default
     c.timeoutIntervalForRequest = 8
-    c.timeoutIntervalForResource = 20
+    c.timeoutIntervalForResource = 90
     return URLSession(configuration: c)
   }()
 
@@ -72,12 +72,23 @@ actor ModelCache {
     return container
   }
 
-  private nonisolated static func localFile(for url: URL, productId: String, session: URLSession) async throws -> URL {
+  /// Copies a locally built USDZ to the cache path `node(for:)` would download to, so no re-download happens.
+  func prime(localUSDZ: URL, for product: Product) {
+    guard let url = product.modelUrl, let file = try? Self.cacheFile(for: url, productId: product.id) else { return }
+    if FileManager.default.fileExists(atPath: file.path) { return }
+    try? FileManager.default.copyItem(at: localUSDZ, to: file)
+  }
+
+  private nonisolated static func cacheFile(for url: URL, productId: String) throws -> URL {
     let dir = try FileManager.default.url(for: .cachesDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
       .appendingPathComponent("ModelCache", isDirectory: true)
     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let safe = productId.filter { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" }
-    let file = dir.appendingPathComponent("\(safe)-\(abs(url.absoluteString.hashValue)).usdz")
+    return dir.appendingPathComponent("\(safe)-\(abs(url.absoluteString.hashValue)).usdz")
+  }
+
+  private nonisolated static func localFile(for url: URL, productId: String, session: URLSession) async throws -> URL {
+    let file = try cacheFile(for: url, productId: productId)
     if FileManager.default.fileExists(atPath: file.path) { return file }
     let (data, response) = try await session.data(from: url)
     if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) { throw URLError(.badServerResponse) }

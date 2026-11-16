@@ -10,7 +10,7 @@ enum ProductMatcher {
     // A type hint (e.g. "refrigerator") prefers products whose name contains it, skipping the .other size cut-off.
     if let hint = hint?.lowercased(), !hint.isEmpty {
       let named = products
-        .filter { $0.category == category && $0.designId == nil }
+        .filter { $0.category == category && $0.designId == nil && $0.priceCents > 0 }
         .filter { p in
           let name = p.name.lowercased()
           return name.contains(hint) && !(hint == "washer" && name.contains("dishwasher"))
@@ -19,7 +19,7 @@ enum ProductMatcher {
       if let named { return named }
     }
     let best = products
-      .filter { $0.category == category && $0.designId == nil }
+      .filter { $0.category == category && $0.designId == nil && $0.priceCents > 0 }
       .min { distance($0.dimensions) < distance($1.dimensions) }
     // Unrecognised objects only match a product of nearly the same size; otherwise draw a neutral box.
     if category == .other, let best, distance(best.dimensions) > 0.5 { return nil }
