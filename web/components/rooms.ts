@@ -34,17 +34,6 @@ const table = (x: number, z: number, w: number, d: number, h: number, c: string)
   };
 };
 
-const desk = (x: number, z: number, w: number, d: number, c: string): Item => {
-  const base = table(x, z, w, d, 0.75, c);
-  return {
-    boxes: [
-      ...base.boxes.slice(0, 4),
-      { x: x + 0.07, z: z + 0.05, w: w - 0.14, d: d - 0.1, y: 0.5, h: 0.18, c },
-      base.boxes[4],
-    ],
-  };
-};
-
 const block = (x: number, z: number, w: number, d: number, h: number, c: string): Item => ({
   boxes: [{ x, z, w, d, h, c }],
 });
@@ -92,7 +81,6 @@ const plant = (x: number, z: number): Item => ({
 const WOOD = "#C99A68";
 const WALNUT = "#8A5F41";
 const LINEN = "#F3EEE7";
-const INK = "#2B2420";
 const ORANGE = "#FF6600";
 
 const heroItems = {
@@ -133,81 +121,12 @@ export const heroRoom: Room = {
   ],
 };
 
-const stepShell = { ...shell, w: 4.2, d: 3.6, h: 2 };
-const stepItems = [
-  sofa(1, 0.2, 2.1, "#E9E1D6", "#FFFFFF"),
-  table(1.5, 1.6, 1.1, 0.6, 0.45, WOOD),
-  block(0.12, 1.1, 0.36, 0.9, 1.5, WALNUT),
-  chair(0.5, 2.6, "#D9C7B2", "z"),
-];
-
-export const scanRoom: Room = {
-  ...stepShell,
-  wallL: "#FFF1E4",
-  wallR: "#FFF7EF",
-  floor: "#FFE6D1",
-  items: stepItems.map((item) => ({
-    ghost: true,
-    boxes: [
-      (() => {
-        const xs = item.boxes.map((b) => b.x);
-        const zs = item.boxes.map((b) => b.z);
-        const x = Math.min(...xs);
-        const z = Math.min(...zs);
-        return {
-          x,
-          z,
-          w: Math.max(...item.boxes.map((b) => b.x + b.w)) - x,
-          d: Math.max(...item.boxes.map((b) => b.z + b.d)) - z,
-          h: Math.max(...item.boxes.map((b) => (b.y ?? 0) + b.h)),
-          c: ORANGE,
-        };
-      })(),
-    ],
-  })),
-};
-
-export const rebuiltRoom: Room = {
-  ...stepShell,
-  items: [
-    stepItems[0],
-    { ...stepItems[1], selected: true, tag: { title: "Birk Coffee Table", sub: "Nordhem · $129" } },
-    stepItems[2],
-    stepItems[3],
-  ],
-};
-
-export const editRoom: Room = {
-  ...stepShell,
-  w: 5,
-  items: [
-    stepItems[0],
-    table(1.5, 1.6, 1.1, 0.6, 0.45, WOOD),
-    stepItems[2],
-    { ...chair(0.5, 2.6, ORANGE, "z"), selected: true, drift: true },
-    block(3.9, 0.3, 0.4, 0.35, 0.45, WOOD),
-    { ...desk(3.3, 2.2, 1.2, 0.6, WALNUT), selected: true },
-  ],
-};
-
-export const deskRoom: Room = {
-  w: 2,
-  d: 1.4,
-  h: 0.02,
-  wallL: "transparent",
-  wallR: "transparent",
-  floor: "transparent",
-  items: [desk(0.4, 0.4, 1.2, 0.6, WALNUT)],
-};
-
-export type FeedRoom = { title: string; by: string; items: number; tone: string; room: Room };
+export type FeedRoom = { title: string; by: string; room: Room };
 
 export const feedRooms: FeedRoom[] = [
   {
     title: "Sunlit Living Room",
     by: "Maya",
-    items: 6,
-    tone: "bg-[#FFF1E4]",
     room: {
       ...shell,
       w: 4.4,
@@ -228,8 +147,6 @@ export const feedRooms: FeedRoom[] = [
   {
     title: "Movie Night Den",
     by: "Jon",
-    items: 4,
-    tone: "bg-[#1B1612]",
     room: {
       w: 4,
       d: 3.6,
@@ -247,31 +164,8 @@ export const feedRooms: FeedRoom[] = [
     },
   },
   {
-    title: "Minimal Studio",
-    by: "Priya",
-    items: 4,
-    tone: "bg-white",
-    room: {
-      w: 3.6,
-      d: 3.4,
-      h: 2.6,
-      wallL: "#F1EEEA",
-      wallR: "#F8F6F3",
-      floor: "#E4DFD8",
-      window: { x: 0.5, w: 1.1, y: 1.1, h: 1.1 },
-      items: [
-        desk(1.9, 0.2, 1.4, 0.65, "#FFFFFF"),
-        chair(2.3, 1.1, INK),
-        block(0.12, 0.8, 0.36, 1.2, 1.9, "#FFFFFF"),
-        plant(0.5, 2.6),
-      ],
-    },
-  },
-  {
     title: "Weekend Guest Room",
     by: "Maya",
-    items: 4,
-    tone: "bg-[#FF6600]",
     room: {
       w: 4,
       d: 3.6,
@@ -289,31 +183,8 @@ export const feedRooms: FeedRoom[] = [
     },
   },
   {
-    title: "Maker's Corner",
-    by: "Priya",
-    items: 5,
-    tone: "bg-[#F1E6D8]",
-    room: {
-      w: 4.2,
-      d: 3.2,
-      h: 2.8,
-      wallL: "#E6D6C2",
-      wallR: "#EFE2D1",
-      floor: "#CDB79E",
-      items: [
-        desk(1, 0.2, 1.8, 0.75, WALNUT),
-        block(3.2, 0.15, 0.8, 0.35, 1.9, WOOD),
-        chair(1.6, 1.2, ORANGE),
-        block(0.3, 2.2, 0.4, 0.35, 0.45, WOOD),
-        lamp(0.5, 0.5),
-      ],
-    },
-  },
-  {
     title: "Scandi Lounge",
     by: "Elsa",
-    items: 5,
-    tone: "bg-[#FFF8F1]",
     room: {
       w: 4.6,
       d: 3.4,
@@ -328,48 +199,6 @@ export const feedRooms: FeedRoom[] = [
         chair(0.4, 1.9, "#E9E1D6", "z"),
         block(3.7, 0.15, 0.77, 0.39, 1.47, "#FFFFFF"),
         plant(0.45, 0.4),
-      ],
-    },
-  },
-  {
-    title: "Warm Walnut Living",
-    by: "Jon",
-    items: 4,
-    tone: "bg-[#8A5F41]",
-    room: {
-      w: 4.2,
-      d: 3.8,
-      h: 2.7,
-      wallL: "#B98A66",
-      wallR: "#C99A76",
-      floor: "#6E4A32",
-      rug: { x: 1, z: 1.2, w: 2.4, d: 1.7, c: "#F3E3D0" },
-      items: [
-        sofa(1, 0.2, 2.1, "#F3E3D0", "#FFFFFF"),
-        table(1.5, 1.7, 1.1, 0.6, 0.45, "#4E3423"),
-        block(0.12, 1.2, 0.45, 1.6, 0.75, "#4E3423"),
-        lamp(3.6, 0.5, ORANGE),
-      ],
-    },
-  },
-  {
-    title: "Cozy Reading Corner",
-    by: "Elsa",
-    items: 4,
-    tone: "bg-[#FFE6D1]",
-    room: {
-      w: 3.4,
-      d: 3.2,
-      h: 2.2,
-      wallL: "#FFF1E4",
-      wallR: "#FFF8F1",
-      floor: "#F1D9C0",
-      rug: { x: 0.8, z: 0.8, w: 1.8, d: 1.6, c: "#FF6600" },
-      items: [
-        chair(1.3, 0.9, "#FFFFFF"),
-        block(0.12, 0.4, 0.32, 0.9, 1.9, WOOD),
-        table(2.1, 1.1, 0.45, 0.45, 0.55, WALNUT),
-        lamp(0.7, 0.45),
       ],
     },
   },

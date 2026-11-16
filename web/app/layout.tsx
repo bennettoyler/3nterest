@@ -1,16 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 import "./globals.css";
-
-const display = Bricolage_Grotesque({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const body = Instrument_Sans({
-  variable: "--font-body",
-  subsets: ["latin"],
-});
 
 const title = "3nterest — every pin is a 3D room";
 const description =
@@ -39,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable} antialiased`}>
+    <html lang="en" className="antialiased">
       <body className="font-sans">{children}</body>
     </html>
   );

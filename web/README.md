@@ -33,6 +33,7 @@ Import the repository in Vercel and set:
 - `app/page.tsx`: the page and all of its copy.
 - `components/IsoRoom.tsx`: the isometric room illustration, drawn as SVG from boxes.
 - `components/rooms.ts`: the rooms shown in the illustrations.
-- `components/Logo.tsx`, `app/icon.svg`, `app/opengraph-image.png`: the logo, favicon and Open Graph image.
+- `components/Logo.tsx`, `app/icon.png`, `app/opengraph-image.png`: the logo, favicon and Open Graph image. They follow `PinLogo` and the app icon in `Interest/App/`.
+- `app/globals.css`: the theme, taken from the app: the system sans-serif font, orange `#FF6600` on white, and iOS system grays.
 
 The rooms on the page are illustrations, not screenshots of the app.

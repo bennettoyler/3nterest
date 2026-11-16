@@ -1,20 +1,12 @@
-export function Logo({ size = 40, className }: { size?: number; className?: string }) {
+export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
+    <span
       role="img"
-      aria-label="3nterest logo"
-      className={className}
+      aria-label="3nterest"
+      className="inline-flex shrink-0 items-center justify-center bg-brand font-normal leading-none text-white"
+      style={{ width: size, height: size, fontSize: size * 0.72, borderRadius: size * 0.22 }}
     >
-      <rect width="100" height="100" rx="22" fill="#FF6600" />
-      <path
-        d="M35.5 30.5A15.5 13.5 0 1 1 50 49.5H44M50 49.5A17 15 0 1 1 33.5 70"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeWidth="13"
-      />
-    </svg>
+      3
+    </span>
   );
 }
