@@ -54,8 +54,8 @@ export default function Home() {
         <section className="grid grid-cols-2 gap-x-3 gap-y-5 py-6 sm:grid-cols-4 sm:gap-x-4">
           {feedRooms.map((r) => (
             <figure key={r.title}>
-              <div className="flex aspect-square items-center overflow-hidden rounded-2xl bg-brand/15">
-                <IsoRoom room={r.room} className="h-auto w-full" label={`Illustration of a room titled ${r.title}.`} />
+              <div className="relative aspect-square overflow-hidden rounded-2xl bg-brand/15">
+                <IsoRoom room={r.room} className="absolute inset-0 h-full w-full" label={`Illustration of a room titled ${r.title}.`} />
               </div>
               <figcaption className="mt-1.5">
                 <p className="text-[15px] font-semibold leading-snug">{r.title}</p>
