@@ -21,6 +21,13 @@ final class ProductMatcherTests: XCTestCase {
     XCTAssertEqual(m?.id, "s")
   }
 
+  func testIgnoresUserScannedZeroPriceProducts() {
+    let scanned = Product.fixture(id: "u", category: .table, priceCents: 0, dimensions: .init(width: 1.5, depth: 0.8, height: 0.74))
+    let stock = Product.fixture(id: "s", category: .table, dimensions: .init(width: 0.6, depth: 0.6, height: 0.45))
+    XCTAssertEqual(ProductMatcher.match(category: .table, size: .init(width: 1.5, depth: 0.8, height: 0.74), in: [scanned, stock])?.id, "s")
+    XCTAssertNil(ProductMatcher.match(category: .table, size: .init(width: 1.5, depth: 0.8, height: 0.74), in: [scanned]))
+  }
+
   func testOtherCategoryOnlyMatchesNearSizes() {
     let lamp = Product.fixture(id: "l", category: .other, dimensions: .init(width: 0.4, depth: 0.4, height: 1.6))
     XCTAssertNil(ProductMatcher.match(category: .other, size: .init(width: 0.9, depth: 0.7, height: 1.8), in: [lamp]))
