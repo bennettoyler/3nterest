@@ -150,14 +150,14 @@ extension FurnitureShapes {
     let hx = w / 2, hz = d / 2
     let walnut = officeHex(0x5A3D28), leg = officeShade(walnut, 0.8)
     let top: Float = 0.04
-    let cap = min(0.12, w * 0.08)
+    let cap = min(0.05, w * 0.03)
     b.box(-hx + cap, hx - cap, h - top, h, -hz, hz, walnut)
     b.box(-hx, -hx + cap, h - top, h, -hz + cap, hz - cap, walnut)
     b.box(hx - cap, hx, h - top, h, -hz + cap, hz - cap, walnut)
     for s: Float in [-1, 1] {
       let x = s * w * 0.3
-      b.box(x - 0.03, x + 0.03, 0.03, h - top, -hz * 0.6, hz * 0.6, leg)
-      b.box(x - 0.08, x + 0.08, 0, 0.03, -hz * 0.75, hz * 0.75, leg)
+      b.box(x - 0.05, x + 0.05, 0.03, h - top, -hz * 0.6, hz * 0.6, leg)
+      b.box(x - 0.1, x + 0.1, 0, 0.03, -hz * 0.75, hz * 0.75, leg)
     }
   }
 }

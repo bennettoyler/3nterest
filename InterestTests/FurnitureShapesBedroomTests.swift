@@ -15,7 +15,7 @@ final class FurnitureShapesBedroomTests: XCTestCase {
     guard let node = FurnitureShapes.bedroomNode(named: name, size: s) else {
       return XCTFail("nil for \(name)", file: file, line: line)
     }
-    let (lo, hi) = node.flattenedClone().boundingBox
+    let (lo, hi) = shapeBounds(node)
     XCTAssertEqual(hi.x - lo.x, s.width, accuracy: 0.02, "\(name) width", file: file, line: line)
     XCTAssertEqual(hi.y - lo.y, s.height, accuracy: 0.02, "\(name) height", file: file, line: line)
     XCTAssertEqual(hi.z - lo.z, s.depth, accuracy: 0.02, "\(name) depth", file: file, line: line)

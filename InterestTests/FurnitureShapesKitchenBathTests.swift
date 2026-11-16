@@ -17,8 +17,20 @@ final class FurnitureShapesKitchenBathTests: XCTestCase {
     guard let node = FurnitureShapes.kitchenBathNode(named: name, size: s) else {
       return XCTFail("nil for \(name)")
     }
-    let flat = node.flattenedClone()
-    let (lo, hi) = flat.boundingBox
+    var lo = SCNVector3(Float.greatestFiniteMagnitude, .greatestFiniteMagnitude, .greatestFiniteMagnitude)
+    var hi = SCNVector3(-Float.greatestFiniteMagnitude, -.greatestFiniteMagnitude, -.greatestFiniteMagnitude)
+    func visit(_ n: SCNNode) {
+      if n.geometry != nil {
+        let (a, b) = n.boundingBox
+        for i in 0..<8 {
+          let q = n.convertPosition(SCNVector3(i & 1 == 0 ? a.x : b.x, i & 2 == 0 ? a.y : b.y, i & 4 == 0 ? a.z : b.z), to: node)
+          lo = SCNVector3(min(lo.x, q.x), min(lo.y, q.y), min(lo.z, q.z))
+          hi = SCNVector3(max(hi.x, q.x), max(hi.y, q.y), max(hi.z, q.z))
+        }
+      }
+      n.childNodes.forEach(visit)
+    }
+    visit(node)
     XCTAssertEqual(Float(hi.x - lo.x), s.width, accuracy: 0.02, name)
     XCTAssertEqual(Float(hi.y - lo.y), s.height, accuracy: 0.02, name)
     XCTAssertEqual(Float(hi.z - lo.z), s.depth, accuracy: 0.02, name)
