@@ -23,6 +23,9 @@ struct CreateFlowView: View {
   @State private var sheet: Sheet?
   @State private var buying: Product?
   @State private var snapshot: (() -> Data?)?
+  @State private var scanningObject = false
+  @State private var scannedProducts: [Product] = []
+  @State private var savedLocallyOnly = false
 
   private enum Sheet: Identifiable {
     case info(Product)
@@ -46,7 +49,7 @@ struct CreateFlowView: View {
 
   private var selectedProduct: Product? {
     guard let productId = selectedPlacement?.productId else { return nil }
-    return products.first { $0.id == productId }
+    return (products + scannedProducts).first { $0.id == productId }
   }
 
   var body: some View {
@@ -100,6 +103,21 @@ struct CreateFlowView: View {
       editing = true
       self.request = nil
     }
+    .fullScreenCover(isPresented: $scanningObject) {
+      ObjectScanView(
+        upload: uploadScanned,
+        onFinish: { product, scanned in
+          scanningObject = false
+          placeScanned(product, scanned)
+        },
+        onCancel: { scanningObject = false }
+      )
+    }
+    .alert("Saved on this phone only", isPresented: $savedLocallyOnly) {
+      Button("OK", role: .cancel) {}
+    } message: {
+      Text("The object is in your room, but it won't appear after publishing until the backend is updated.")
+    }
     .sheet(item: $sheet) { sheet in
       switch sheet {
       case .info(let product):
@@ -135,7 +153,7 @@ struct CreateFlowView: View {
   }
 
   private var editor: some View {
-    RoomEditorView(room: $room, products: products, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
+    RoomEditorView(room: $room, products: products + scannedProducts, designs: designs, selection: $selection, onSnapshot: { snapshot = $0 })
       .id(designs.map(\.id))
   }
 
@@ -189,6 +207,9 @@ struct CreateFlowView: View {
       toolbarButton("Add", systemImage: "plus", disabled: false) {
         sheet = .add
       }
+      toolbarButton("Scan", systemImage: "viewfinder", disabled: false) {
+        scanningObject = true
+      }
     }
     .padding(.horizontal)
     .padding(.vertical, 8)
@@ -204,6 +225,33 @@ struct CreateFlowView: View {
       .frame(maxWidth: .infinity)
     }
     .disabled(disabled)
+  }
+
+  private func uploadScanned(_ scanned: ScannedObject) async throws -> Product {
+    do {
+      let data = try Data(contentsOf: scanned.modelUSDZ)
+      return try await backend.createScannedProduct(
+        name: scanned.name, dimensions: scanned.dimensions, modelUSDZ: data,
+        thumbnailJPEG: scanned.thumbnailJPEG, userId: currentUser.id)
+    } catch {
+      // ObjectScanView primes ModelCache for the returned product, so no prime here.
+      return Product(
+        id: "local-scan-\(UUID().uuidString)", sellerId: "", sellerName: currentUser.name,
+        name: scanned.name, category: .other, priceCents: 0, dimensions: scanned.dimensions,
+        modelUrl: scanned.modelUSDZ, thumbnailUrl: nil, instructionsUrl: nil, vendorUrl: nil, designId: nil)
+    }
+  }
+
+  private func placeScanned(_ product: Product, _ scanned: ScannedObject) {
+    if !scannedProducts.contains(where: { $0.id == product.id }) { scannedProducts.append(product) }
+    var transform = Self.roomCentreTransform()
+    if scanned.wallMounted { transform[13] = 1.0 }
+    let placement = Placement(
+      id: UUID().uuidString, transform: transform, productId: product.id, designId: nil,
+      category: .other, scannedSize: nil)
+    room.placements.append(placement)
+    selection = placement.id
+    if product.id.hasPrefix("local-scan-") { savedLocallyOnly = true }
   }
 
   private func catalog(title: String, products: [Product], onPick: @escaping (Product) -> Void) -> some View {
