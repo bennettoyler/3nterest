@@ -56,7 +56,8 @@ enum CapturedRoomConverter {
     let items = captured.objects.map { o -> (category: FurnitureCategory, size: Dimensions) in
       (map(o.category), Dimensions(width: o.dimensions.x, depth: o.dimensions.z, height: o.dimensions.y))
     }
-    let matched = ProductMatcher.matchAll(items, in: products)
+    let hinted = zip(items, captured.objects).map { item, o in (category: item.category, size: item.size, hint: hint(o.category)) }
+    let matched = ProductMatcher.matchAll(hinted, in: products)
     let placements = captured.objects.enumerated().map { (i, o) -> Placement in
       Placement(id: UUID().uuidString,
                 transform: geo.objectTransform(o.transform, height: o.dimensions.y),
@@ -81,6 +82,20 @@ enum CapturedRoomConverter {
     case .storage: return .storage
     case .television: return .television
     default: return .other
+    }
+  }
+
+  /// Type keyword for RoomPlan categories that map to `.other`, used to match products by name.
+  static func hint(_ c: CapturedRoom.Object.Category) -> String? {
+    switch c {
+    case .refrigerator: return "refrigerator"
+    case .stove, .oven: return "stove"
+    case .sink: return "sink"
+    case .dishwasher: return "dishwasher"
+    case .washerDryer: return "washer"
+    case .toilet: return "toilet"
+    case .bathtub: return "bathtub"
+    default: return nil
     }
   }
 }

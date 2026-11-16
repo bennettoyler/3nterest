@@ -43,4 +43,37 @@ final class ProductMatcherTests: XCTestCase {
     XCTAssertEqual(Set(out.prefix(10).map { $0?.id }).count, 1)
     XCTAssertNotNil(out[10])
   }
+
+  private func catalogueMatch(_ c: FurnitureCategory, _ w: Float, _ d: Float, _ h: Float, hint: String? = nil) async throws -> String? {
+    let products = try await StubBackend().products()
+    return ProductMatcher.matchAll([(category: c, size: Dimensions(width: w, depth: d, height: h), hint: hint)], in: products)[0]?.name
+  }
+
+  func testHintsMatchApplianceByType() async throws {
+    var r = try await catalogueMatch(.other, 0.9, 0.8, 1.75, hint: "refrigerator")
+    XCTAssertEqual(r, "Frost Refrigerator")
+    r = try await catalogueMatch(.other, 0.6, 0.6, 0.85, hint: "washer")
+    XCTAssertEqual(r, "Front-Load Washer")
+    r = try await catalogueMatch(.other, 0.6, 0.6, 0.85, hint: "dishwasher")
+    XCTAssertEqual(r, "Quiet Dishwasher")
+    r = try await catalogueMatch(.other, 0.4, 0.7, 0.78, hint: "toilet")
+    XCTAssertEqual(r, "Classic Toilet")
+  }
+
+  func testOtherWithoutHintStillUsesSizeRule() async throws {
+    let products = try await StubBackend().products()
+    let expected = ProductMatcher.match(category: .other, size: Dimensions(width: 0.3, depth: 0.3, height: 0.3), in: products)?.id
+    let out = ProductMatcher.matchAll([(category: .other, size: Dimensions(width: 0.3, depth: 0.3, height: 0.3))], in: products)
+    XCTAssertEqual(out[0]?.id, expected)
+    XCTAssertNotEqual(out[0]?.name, "Frost Refrigerator")
+  }
+
+  func testCatalogueFurnitureMatches() async throws {
+    var r = try await catalogueMatch(.bed, 1.0, 2.0, 0.9)
+    XCTAssertEqual(r, "Oak Twin Bed")
+    r = try await catalogueMatch(.storage, 1.0, 0.6, 2.0)
+    XCTAssertEqual(r, "Two-Door Wardrobe")
+    r = try await catalogueMatch(.table, 2.4, 1.1, 0.75)
+    XCTAssertEqual(r, "Walnut Conference Table")
+  }
 }
