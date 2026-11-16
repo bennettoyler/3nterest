@@ -122,6 +122,37 @@ final class ConvexBackend: Backend, @unchecked Sendable {
     return product.product
   }
 
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product {
+    let modelStorageId = try await uploadFile(modelUSDZ, contentType: "model/vnd.usdz+zip")
+    var args: [String: ConvexEncodable?] = [
+      "name": name,
+      "dimensions": ["width": Double(dimensions.width), "depth": Double(dimensions.depth), "height": Double(dimensions.height)],
+      "modelStorageId": modelStorageId,
+      "userId": userId,
+    ]
+    if let thumbnailJPEG, !thumbnailJPEG.isEmpty {
+      args["thumbnailStorageId"] = try await uploadFile(thumbnailJPEG, contentType: "image/jpeg")
+    }
+    let product: ProductDTO = try await withTimeout(30) { try await self.client.mutation("products:createScanned", with: args) }
+    return product.product
+  }
+
+  /// Uploads bytes to Convex file storage and returns the storage id. Generous timeouts for ~20 MB models.
+  private func uploadFile(_ data: Data, contentType: String) async throws -> String {
+    let uploadUrl: String = try await mutation("files:generateUploadUrl")
+    guard let url = URL(string: uploadUrl) else { throw BackendError.uploadFailed }
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.timeoutInterval = 120
+    request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.timeoutIntervalForRequest = 120
+    configuration.timeoutIntervalForResource = 120
+    let (body, response) = try await URLSession(configuration: configuration).upload(for: request, from: data)
+    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw BackendError.uploadFailed }
+    return try JSONDecoder().decode(StorageUpload.self, from: body).storageId
+  }
+
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout {
     try await action("payments:createCheckout", ["productId": productId, "buyerId": buyerId])
   }

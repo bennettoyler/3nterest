@@ -270,6 +270,34 @@ final class StubBackend: Backend, @unchecked Sendable {
     }
   }
 
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product {
+    let id = UUID().uuidString
+    let modelUrl = FileManager.default.temporaryDirectory.appendingPathComponent("scan-\(id).usdz")
+    try modelUSDZ.write(to: modelUrl)
+    var thumbnailUrl: URL?
+    if let thumbnailJPEG, !thumbnailJPEG.isEmpty {
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent("scan-\(id).jpg")
+      if (try? thumbnailJPEG.write(to: url)) != nil { thumbnailUrl = url }
+    }
+    return withLock {
+      let seller: Seller
+      if let sellerId = sellerIdByUserId[userId], let existing = allSellers.first(where: { $0.id == sellerId }) {
+        seller = existing
+      } else {
+        let ownerName = allUsers.first(where: { $0.id == userId })?.name ?? "Maker"
+        seller = Seller(id: nextId("stub-seller"), name: ownerName, kind: "creator", logoUrl: nil)
+        allSellers.append(seller)
+        sellerIdByUserId[userId] = seller.id
+      }
+      let product = Product(
+        id: "stub-scan-\(id)", sellerId: seller.id, sellerName: seller.name, name: name,
+        category: .other, priceCents: 0, dimensions: dimensions,
+        modelUrl: modelUrl, thumbnailUrl: thumbnailUrl, instructionsUrl: nil, vendorUrl: nil, designId: nil)
+      allProducts.insert(product, at: 0)
+      return product
+    }
+  }
+
   private static func boundingSize(of design: Design) -> Dimensions {
     var lo: [Float] = [.greatestFiniteMagnitude, .greatestFiniteMagnitude, .greatestFiniteMagnitude]
     var hi: [Float] = [-.greatestFiniteMagnitude, -.greatestFiniteMagnitude, -.greatestFiniteMagnitude]

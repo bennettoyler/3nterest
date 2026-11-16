@@ -59,4 +59,20 @@ final class StubBackendTests: XCTestCase {
     XCTAssertEqual(order.platformFeeCents, 945)
     XCTAssertEqual(order.sellerCents, 17955)
   }
+
+  func testCreateScannedProduct() async throws {
+    let backend = StubBackend()
+    let bytes = Data([1, 2, 3, 4, 5])
+    let product = try await backend.createScannedProduct(
+      name: "Scanned Vase", dimensions: Dimensions(width: 0.2, depth: 0.2, height: 0.4),
+      modelUSDZ: bytes, thumbnailJPEG: nil, userId: "stub-user-1")
+    XCTAssertEqual(product.priceCents, 0)
+    XCTAssertEqual(product.category, .other)
+    let url = try XCTUnwrap(product.modelUrl)
+    XCTAssertTrue(url.isFileURL)
+    XCTAssertEqual(try Data(contentsOf: url), bytes)
+    let products = try await backend.products()
+    XCTAssertEqual(products.count, 32)
+    XCTAssertTrue(products.contains { $0.id == product.id })
+  }
 }
