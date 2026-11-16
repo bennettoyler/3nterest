@@ -75,6 +75,7 @@ struct FailingBackend: Backend {
   func generateDesign(prompt: String, userId: String) async throws -> Design { throw Failure() }
   func designs(ids: [String]) async throws -> [Design] { throw Failure() }
   func listForSale(designId: String, priceCents: Int) async throws -> Product { throw Failure() }
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product { throw Failure() }
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout { throw Failure() }
   func confirmOrder(id: String) async throws -> Order { throw Failure() }
   func earnings(sellerId: String) async throws -> [Order] { throw Failure() }

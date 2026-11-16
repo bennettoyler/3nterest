@@ -226,6 +226,12 @@ enum FurnitureShapes {
     let names = [
       "stub-stacking-chair": "stacking chair", "stub-task-chair": "task chair", "stub-flip-table": "rolling table",
       "stub-cane-sideboard": "cane sideboard", "stub-wall-tv": "wall tv",
+      "stub-writing-desk": "writing desk", "stub-filing-cabinet": "filing cabinet", "stub-bookshelf": "bookshelf",
+      "stub-whiteboard": "whiteboard", "stub-round-meeting-table": "round meeting table",
+      "stub-conference-table": "conference table", "stub-refrigerator": "refrigerator", "stub-stove": "stove",
+      "stub-sink": "sink", "stub-dishwasher": "dishwasher", "stub-washer": "washer", "stub-toilet": "toilet",
+      "stub-bathtub": "bathtub", "stub-twin-bed": "twin bed", "stub-king-bed": "king bed",
+      "stub-nightstand": "nightstand", "stub-dresser": "dresser", "stub-wardrobe": "wardrobe",
     ]
     return names[id].flatMap { node(named: $0, size: size) }
   }
@@ -238,7 +244,9 @@ enum FurnitureShapes {
     else if name.contains("rolling table") { rollingTable(b) }
     else if name.contains("cane sideboard") { caneSideboard(b) }
     else if name.contains("wall tv") { return wallTelevision(size: size) }
-    else { return nil }
+    else {
+      return officeNode(named: name, size: size) ?? kitchenBathNode(named: name, size: size) ?? bedroomNode(named: name, size: size)
+    }
     return b.container
   }
 

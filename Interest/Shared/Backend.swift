@@ -14,6 +14,8 @@ protocol Backend {
   func generateDesign(prompt: String, userId: String) async throws -> Design
   func designs(ids: [String]) async throws -> [Design]
   func listForSale(designId: String, priceCents: Int) async throws -> Product
+  /// Stores a user-scanned object as a product (priceCents 0, category .other) owned by the user. Returns it with modelUrl set.
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout
   func confirmOrder(id: String) async throws -> Order
   func earnings(sellerId: String) async throws -> [Order]

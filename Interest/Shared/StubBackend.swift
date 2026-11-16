@@ -51,6 +51,24 @@ final class StubBackend: Backend, @unchecked Sendable {
       product("stub-flip-table", nordhem, "Flip-Top Rolling Table", .table, 27900, 1.6, 0.8, 0.75),
       product("stub-cane-sideboard", maya, "Rattan Cane Sideboard", .storage, 54900, 1.6, 0.45, 0.85),
       product("stub-wall-tv", parcel, "Lumen 75-inch Wall TV", .television, 109900, 1.85, 0.08, 1.0),
+      product("stub-writing-desk", maya, "Oak Writing Desk", .table, 24900, 1.4, 0.7, 0.75),
+      product("stub-filing-cabinet", nordhem, "Slim Filing Cabinet", .storage, 12900, 0.45, 0.6, 1.1),
+      product("stub-bookshelf", maya, "Open Oak Bookshelf", .storage, 17900, 0.9, 0.32, 1.9),
+      product("stub-whiteboard", nordhem, "Mobile Whiteboard", .other, 21900, 1.5, 0.5, 1.9),
+      product("stub-round-meeting-table", nordhem, "Round Meeting Table", .table, 31900, 1.2, 1.2, 0.75),
+      product("stub-conference-table", maya, "Walnut Conference Table", .table, 129900, 2.4, 1.1, 0.75),
+      product("stub-refrigerator", parcel, "Frost Refrigerator", .other, 119900, 0.75, 0.72, 1.8),
+      product("stub-stove", parcel, "Gas Range Stove", .other, 84900, 0.76, 0.66, 0.92),
+      product("stub-sink", nordhem, "Kitchen Sink Cabinet", .other, 45900, 0.8, 0.6, 0.9),
+      product("stub-dishwasher", parcel, "Quiet Dishwasher", .other, 64900, 0.6, 0.6, 0.85),
+      product("stub-washer", parcel, "Front-Load Washer", .other, 79900, 0.6, 0.62, 0.85),
+      product("stub-toilet", nordhem, "Classic Toilet", .other, 28900, 0.4, 0.7, 0.78),
+      product("stub-bathtub", nordhem, "Soaking Bathtub", .other, 99900, 1.7, 0.76, 0.56),
+      product("stub-twin-bed", maya, "Oak Twin Bed", .bed, 34900, 1.0, 2.0, 0.9),
+      product("stub-king-bed", nordhem, "Haven King Bed", .bed, 109900, 1.95, 2.05, 1.0),
+      product("stub-nightstand", maya, "Oak Nightstand", .storage, 11900, 0.5, 0.4, 0.55),
+      product("stub-dresser", nordhem, "Six-Drawer Dresser", .storage, 39900, 1.4, 0.5, 0.85),
+      product("stub-wardrobe", maya, "Two-Door Wardrobe", .storage, 54900, 1.0, 0.6, 2.0),
     ]
 
     let sample = StubBackend.sampleRoom()
@@ -247,6 +265,34 @@ final class StubBackend: Backend, @unchecked Sendable {
         id: nextId("stub-product"), sellerId: seller.id, sellerName: seller.name, name: design.title,
         category: .other, priceCents: priceCents, dimensions: size,
         modelUrl: nil, thumbnailUrl: nil, instructionsUrl: nil, vendorUrl: nil, designId: design.id)
+      allProducts.insert(product, at: 0)
+      return product
+    }
+  }
+
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product {
+    let id = UUID().uuidString
+    let modelUrl = FileManager.default.temporaryDirectory.appendingPathComponent("scan-\(id).usdz")
+    try modelUSDZ.write(to: modelUrl)
+    var thumbnailUrl: URL?
+    if let thumbnailJPEG, !thumbnailJPEG.isEmpty {
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent("scan-\(id).jpg")
+      if (try? thumbnailJPEG.write(to: url)) != nil { thumbnailUrl = url }
+    }
+    return withLock {
+      let seller: Seller
+      if let sellerId = sellerIdByUserId[userId], let existing = allSellers.first(where: { $0.id == sellerId }) {
+        seller = existing
+      } else {
+        let ownerName = allUsers.first(where: { $0.id == userId })?.name ?? "Maker"
+        seller = Seller(id: nextId("stub-seller"), name: ownerName, kind: "creator", logoUrl: nil)
+        allSellers.append(seller)
+        sellerIdByUserId[userId] = seller.id
+      }
+      let product = Product(
+        id: "stub-scan-\(id)", sellerId: seller.id, sellerName: seller.name, name: name,
+        category: .other, priceCents: 0, dimensions: dimensions,
+        modelUrl: modelUrl, thumbnailUrl: thumbnailUrl, instructionsUrl: nil, vendorUrl: nil, designId: nil)
       allProducts.insert(product, at: 0)
       return product
     }

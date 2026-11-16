@@ -102,6 +102,9 @@ private final class UnpaidBackend: Backend, @unchecked Sendable {
   func listForSale(designId: String, priceCents: Int) async throws -> Product {
     try await stub.listForSale(designId: designId, priceCents: priceCents)
   }
+  func createScannedProduct(name: String, dimensions: Dimensions, modelUSDZ: Data, thumbnailJPEG: Data?, userId: String) async throws -> Product {
+    try await stub.createScannedProduct(name: name, dimensions: dimensions, modelUSDZ: modelUSDZ, thumbnailJPEG: thumbnailJPEG, userId: userId)
+  }
   func createCheckout(productId: String, buyerId: String) async throws -> Checkout {
     try await stub.createCheckout(productId: productId, buyerId: buyerId)
   }
