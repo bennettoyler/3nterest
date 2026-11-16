@@ -91,4 +91,18 @@ final class RoomSceneBuilderTests: XCTestCase {
     XCTAssertEqual(Float(lo.x), 2, accuracy: 1e-3)
     XCTAssertEqual(Float(hi.x), 4, accuracy: 1e-3)
   }
+
+  private func scaledChildX(scannedWidth: Float) -> Float {
+    let product = Product.fixture(id: "p", category: .table, dimensions: .init(width: 1.0, depth: 0.5, height: 0.7))
+    let pl = Placement(id: "pl", transform: transformArray(position: [0, 0, 0], yawRadians: 0),
+                       productId: "p", designId: nil, category: .table,
+                       scannedSize: .init(width: scannedWidth, depth: 0.5, height: 0.7))
+    let node = RoomSceneBuilder.placementNode(for: pl, products: [product], designs: [])
+    return node.childNodes.first!.scale.x
+  }
+
+  func testScannedSizeScalesProductNode() {
+    XCTAssertEqual(scaledChildX(scannedWidth: 1.2), 1.2, accuracy: 0.01)
+    XCTAssertEqual(scaledChildX(scannedWidth: 3.0), 1.4, accuracy: 0.01)
+  }
 }

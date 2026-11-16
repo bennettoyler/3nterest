@@ -53,13 +53,15 @@ enum CapturedRoomConverter {
     func surface(_ s: CapturedRoom.Surface) -> Surface {
       Surface(transform: geo.surfaceTransform(s.transform), width: s.dimensions.x, height: s.dimensions.y)
     }
-    let placements = captured.objects.map { o -> Placement in
-      let category = map(o.category)
-      let size = Dimensions(width: o.dimensions.x, depth: o.dimensions.z, height: o.dimensions.y)
-      return Placement(id: UUID().uuidString,
-                       transform: geo.objectTransform(o.transform, height: o.dimensions.y),
-                       productId: ProductMatcher.match(category: category, size: size, in: products)?.id,
-                       designId: nil, category: category, scannedSize: size)
+    let items = captured.objects.map { o -> (category: FurnitureCategory, size: Dimensions) in
+      (map(o.category), Dimensions(width: o.dimensions.x, depth: o.dimensions.z, height: o.dimensions.y))
+    }
+    let matched = ProductMatcher.matchAll(items, in: products)
+    let placements = captured.objects.enumerated().map { (i, o) -> Placement in
+      Placement(id: UUID().uuidString,
+                transform: geo.objectTransform(o.transform, height: o.dimensions.y),
+                productId: matched[i]?.id,
+                designId: nil, category: items[i].category, scannedSize: items[i].size)
     }
     let room = Room(id: "", ownerId: ownerId, ownerName: ownerName, title: "My room",
                 thumbnailUrl: nil, published: false,
@@ -67,7 +69,7 @@ enum CapturedRoomConverter {
                                  doors: captured.doors.map(surface),
                                  windows: captured.windows.map(surface)),
                 placements: placements, remixedFromId: nil)
-    return RoomNormalizer.normalized(room)
+    return PlacementOrienter.oriented(RoomNormalizer.normalized(room))
   }
 
   static func map(_ c: CapturedRoom.Object.Category) -> FurnitureCategory {

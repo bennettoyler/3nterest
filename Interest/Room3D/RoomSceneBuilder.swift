@@ -163,6 +163,16 @@ enum RoomSceneBuilder {
     camera.zFar = Double(max(200, distance + radius * 2))
   }
 
+  /// Per-axis scale of a product to the scanned size, each ratio clamped to 0.75...1.4 (width/depth swapped if that fits better).
+  static func scannedScale(_ scanned: Dimensions?, product: Product) -> SCNVector3 {
+    guard let s = scanned else { return SCNVector3(1, 1, 1) }
+    let d = product.dimensions
+    var w = s.width, dp = s.depth
+    if abs(dp - d.width) + abs(w - d.depth) < abs(w - d.width) + abs(dp - d.depth) { swap(&w, &dp) }
+    func r(_ a: Float, _ b: Float) -> Float { b > 1e-4 ? max(0.75, min(1.4, a / b)) : 1 }
+    return SCNVector3(r(w, d.width), r(s.height, d.height), r(dp, d.depth))
+  }
+
   /// Container node: name = placement.id, transform = placement.transform, base at y = 0.
   static func placementNode(for placement: Placement, products: [Product], designs: [Design]) -> SCNNode {
     let container = SCNNode()
@@ -172,15 +182,19 @@ enum RoomSceneBuilder {
     let wallTV = placement.category == .television && placement.transform.count == 16 && placement.transform[13] > 0.3
     if wallTV {
       let product = placement.productId.flatMap { pid in products.first(where: { $0.id == pid }) }
-      let size = product?.dimensions ?? placement.scannedSize ?? Dimensions(width: 1.2, depth: 0.06, height: 0.7)
+      let size = placement.scannedSize ?? product?.dimensions ?? Dimensions(width: 1.2, depth: 0.06, height: 0.7)
       container.addChildNode(FurnitureShapes.wallTelevision(size: size))
     } else if let pid = placement.productId, let product = products.first(where: { $0.id == pid }) {
-      container.addChildNode(ModelCache.fallbackBox(for: product))
-      let placeholder = container.childNodes.first
+      let scale = scannedScale(placement.scannedSize, product: product)
+      let box = ModelCache.fallbackBox(for: product)
+      box.scale = scale
+      container.addChildNode(box)
+      let placeholder = box
       Task {
         let loaded = await ModelCache.shared.node(for: product)
         await MainActor.run {
-          placeholder?.removeFromParentNode()
+          placeholder.removeFromParentNode()
+          loaded.scale = scale
           container.addChildNode(loaded)
         }
       }
