@@ -41,6 +41,7 @@ struct ObjectScanView: View {
   @State private var captureSession: AnyObject?
   @State private var imagesDir: URL?
   @State private var buildTask: Task<Void, Never>?
+  @State private var watchdogTask: Task<Void, Never>?
 
   private let orange = Color(red: 1.0, green: 0.4, blue: 0.0)
 
@@ -139,10 +140,11 @@ struct ObjectScanView: View {
       let session = ObjectCaptureSession()
       session.start(imagesDirectory: images, configuration: ObjectCaptureSession.Configuration())
       imagesDir = images
+      ScanLog.add("capture start: \(dir.lastPathComponent)")
       captureSession = session
       stage = .capture
     } catch {
-      fail("Could not start the camera: \(error.localizedDescription)", retry: { start3DCapture() })
+      fail("Could not start the camera: \(describe(error))", retry: { start3DCapture() })
     }
     #endif
   }
@@ -155,50 +157,147 @@ struct ObjectScanView: View {
     stage = .choose
   }
 
+  private var outputURL: URL? {
+    imagesDir?.deletingLastPathComponent().appendingPathComponent("model.usdz")
+  }
+
+  private func usableModel(_ url: URL) -> Bool {
+    let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? nil
+    return (size ?? 0) > 100_000
+  }
+
+  private func describe(_ error: Error) -> String {
+    String("\(error.localizedDescription) (\(String(describing: error)))".prefix(200))
+  }
+
+  /// Loads the finished model and moves to the naming step.
+  private func finishModel(_ output: URL) async {
+    do {
+      let obj = try ScannedObjectBuilder.object(fromUSDZ: output, name: "Scanned object")
+      let size = (try? FileManager.default.attributesOfItem(atPath: output.path)[.size] as? Int) ?? nil
+      ScanLog.add("success: \(size ?? 0) bytes, \(String(format: "%.3f x %.3f x %.3f m (w x d x h)", obj.dimensions.width, obj.dimensions.depth, obj.dimensions.height))")
+      await MainActor.run { scanned = obj; name = obj.name; stage = .naming }
+    } catch {
+      ScanLog.add("load error: \(String(describing: error)) / \(error.localizedDescription)")
+      await MainActor.run { fail("Could not build the 3D model: \(describe(error))", retry: { startReconstruction() }) }
+    }
+  }
+
   private func startReconstruction() {
     #if !targetEnvironment(simulator)
-    guard #available(iOS 17.0, *), let images = imagesDir else { return }
-    captureSession = nil
+    guard #available(iOS 17.0, *), let images = imagesDir, let output = outputURL else { return }
     progress = 0
     errorText = nil
     stage = .building
-    let output = images.deletingLastPathComponent().appendingPathComponent("model.usdz")
+    let fileCount = (try? FileManager.default.contentsOfDirectory(atPath: images.path).count) ?? 0
+    ScanLog.add("reconstruction start: \(fileCount) files in \(images.deletingLastPathComponent().lastPathComponent)/Images")
+    watchdogTask?.cancel(); watchdogTask = nil
+    buildTask?.cancel()
     buildTask = Task {
+      // Apple requires the capture session to be released before a PhotogrammetrySession exists.
+      await MainActor.run { captureSession = nil }
+      try? await Task.sleep(nanoseconds: 700_000_000)
+      if Task.isCancelled { return }
+      try? FileManager.default.removeItem(at: output)
+      var failure: Error?
+      var cancelled = false
       do {
-        try? FileManager.default.removeItem(at: output)
-        let ps = try PhotogrammetrySession(input: images, configuration: PhotogrammetrySession.Configuration())
-        try ps.process(requests: [.modelFile(url: output, detail: .reduced)])
-        var done = false
-        for try await o in ps.outputs {
+        let ps = try await makePhotogrammetrySession(images: images, output: output)
+        var lastStep = -1
+        outputLoop: for try await o in ps.outputs {
           switch o {
           case .requestProgress(_, let fraction):
-            await MainActor.run { progress = fraction }
+            let step = Int(fraction * 10)
+            if step != lastStep { lastStep = step; ScanLog.add("output: requestProgress \(Int(fraction * 100))%") }
+            await MainActor.run { updateProgress(fraction) }
           case .requestComplete:
-            done = true
+            ScanLog.add("output: requestComplete")
+            break outputLoop
+          case .processingComplete:
+            ScanLog.add("output: processingComplete")
+            break outputLoop
+          case .processingCancelled:
+            ScanLog.add("output: processingCancelled")
+            cancelled = true
+            break outputLoop
           case .requestError(_, let error):
+            ScanLog.add("output: requestError \(String(describing: error))")
             throw error
+          case .inputComplete:
+            ScanLog.add("output: inputComplete")
+          case .invalidSample(let id, let reason):
+            ScanLog.add("output: invalidSample id=\(id) reason=\(reason)")
+          case .skippedSample(let id):
+            ScanLog.add("output: skippedSample id=\(id)")
+          case .automaticDownsampling:
+            ScanLog.add("output: automaticDownsampling")
           default:
-            break
+            ScanLog.add("output: other \(String(describing: o).prefix(100))")
           }
         }
-        if Task.isCancelled { return }
-        guard done else { throw ScannedObjectBuilder.BuildError.emptyModel }
-        let obj = try ScannedObjectBuilder.object(fromUSDZ: output, name: "Scanned object")
-        await MainActor.run { scanned = obj; name = obj.name; stage = .naming }
       } catch {
-        if Task.isCancelled { return }
-        await MainActor.run { fail("Could not build the 3D model: \(error.localizedDescription)", retry: { startReconstruction() }) }
+        failure = error
+        ScanLog.add("reconstruction error: \(String(describing: error)) / \(error.localizedDescription)")
+      }
+      await MainActor.run { watchdogTask?.cancel(); watchdogTask = nil }
+      if Task.isCancelled { return }
+      if cancelled && failure == nil { return }
+      if usableModel(output) {
+        if let failure { ScanLog.add("using existing model despite error: \(String(describing: failure))") }
+        await finishModel(output)
+      } else {
+        let text = failure.map { "Could not build the 3D model: \(describe($0))" } ?? "Could not build the 3D model: no model was produced."
+        await MainActor.run { fail(text, retry: { startReconstruction() }) }
       }
     }
     #endif
   }
 
+  #if !targetEnvironment(simulator)
+  /// Creates the session and starts the request; retries once after 1.5 s if either throws.
+  @available(iOS 17.0, *)
+  private func makePhotogrammetrySession(images: URL, output: URL) async throws -> PhotogrammetrySession {
+    func attempt() throws -> PhotogrammetrySession {
+      let ps = try PhotogrammetrySession(input: images, configuration: PhotogrammetrySession.Configuration())
+      try ps.process(requests: [.modelFile(url: output, detail: .reduced)])
+      return ps
+    }
+    do { return try attempt() } catch {
+      ScanLog.add("session create/process failed, retrying: \(String(describing: error)) / \(error.localizedDescription)")
+      try? await Task.sleep(nanoseconds: 1_500_000_000)
+      return try attempt()
+    }
+  }
+  #endif
+
+  /// Updates progress and arms a 180 s watchdog the first time progress reaches 99%.
+  private func updateProgress(_ fraction: Double) {
+    progress = fraction
+    guard fraction >= 0.99, watchdogTask == nil, stage == .building else { return }
+    watchdogTask = Task {
+      try? await Task.sleep(nanoseconds: 180_000_000_000)
+      if Task.isCancelled { return }
+      await MainActor.run {
+        guard stage == .building else { return }
+        ScanLog.add("watchdog fired")
+        buildTask?.cancel(); buildTask = nil
+        watchdogTask = nil
+        if let output = outputURL, usableModel(output) {
+          ScanLog.add("watchdog: model exists, continuing with it")
+          Task { await finishModel(output) }
+        } else {
+          fail("Building the 3D model took too long.", retry: { startReconstruction() })
+        }
+      }
+    }
+  }
+
   private var buildingView: some View {
     VStack(spacing: 16) {
       ProgressView()
-      Text("Building 3D model… \(Int((progress * 100).rounded()))%").font(.headline)
+      Text(progress >= 0.99 ? "Finishing 3D model…" : "Building 3D model… \(Int((progress * 100).rounded()))%").font(.headline)
       Text("This can take a minute. Keep the app open.").font(.footnote).foregroundStyle(.secondary)
-      Button("Cancel") { buildTask?.cancel(); buildTask = nil; stage = .choose }
+      Button("Cancel") { buildTask?.cancel(); buildTask = nil; watchdogTask?.cancel(); watchdogTask = nil; stage = .choose }
     }
     .padding()
   }
@@ -277,6 +376,7 @@ struct ObjectScanView: View {
   // MARK: - Errors
 
   private func fail(_ message: String, retry: (() -> Void)?) {
+    ScanLog.add("fail: \(message)")
     errorText = message
     retryAction = retry
   }
@@ -372,8 +472,12 @@ private struct CaptureStage: View {
           Button("Cancel", action: onCancel).buttonStyle(.bordered).tint(.white)
           Spacer()
           if case .capturing = session.state {
-            Text("\(session.numberOfShotsTaken) photos").font(.footnote.bold()).padding(8)
-              .background(.black.opacity(0.5), in: Capsule()).foregroundStyle(.white)
+            VStack(alignment: .trailing, spacing: 4) {
+              Text("\(session.numberOfShotsTaken) photos").font(.footnote.bold())
+              Text("Move slowly all the way around. Aim for 30+ photos.").font(.caption2)
+            }
+            .padding(8)
+            .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 12)).foregroundStyle(.white)
           }
         }
         .padding()
@@ -385,9 +489,15 @@ private struct CaptureStage: View {
       }
     }
     .onChange(of: session.state) { _, state in
+      ScanLog.add("capture state: \(String(describing: state))")
       switch state {
-      case .completed: onFinished()
-      case .failed(let error): onFailed("Capture failed: \(error.localizedDescription)")
+      case .finishing: ScanLog.add("photos at finish: \(session.numberOfShotsTaken)")
+      case .completed:
+        ScanLog.add("photos at completed: \(session.numberOfShotsTaken)")
+        onFinished()
+      case .failed(let error):
+        ScanLog.add("capture failed: \(String(describing: error))")
+        onFailed("Capture failed: \(String(("\(error.localizedDescription) (\(String(describing: error)))").prefix(200)))")
       default: break
       }
     }
